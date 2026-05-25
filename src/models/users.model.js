@@ -7,6 +7,7 @@ const userSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+
     email: {
       type: String,
       required: true,
@@ -14,21 +15,31 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
     },
+
     password: {
       type: String,
       required: true,
       select: false,
     },
+
     phone: {
       type: String,
       trim: true,
       default: "",
     },
-    role: {
-      type: String,
-      enum: ["user", "admin"],
-      default: "user",
+
+    roleId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Role",
+      required: true,
     },
+
+    branchId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Branch",
+      default: null,
+    },
+
     isActive: {
       type: Boolean,
       default: true,

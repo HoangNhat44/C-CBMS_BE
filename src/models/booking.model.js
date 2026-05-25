@@ -20,6 +20,12 @@ const bookingSchema = new mongoose.Schema(
       required: true,
     },
 
+    slotId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Slot",
+      required: true,
+    },
+
     bookingDate: {
       type: Date,
       required: true,
@@ -38,6 +44,30 @@ const bookingSchema = new mongoose.Schema(
     totalHours: {
       type: Number,
       required: true,
+      min: 1,
+    },
+
+    dayType: {
+      type: String,
+      enum: ["weekday", "weekend", "holiday"],
+      required: true,
+    },
+
+    roomPriceSnapshot: {
+      roomTypeId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "RoomType",
+      },
+
+      slotId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Slot",
+      },
+
+      pricePerHour: {
+        type: Number,
+        required: true,
+      },
     },
 
     products: [
@@ -47,12 +77,23 @@ const bookingSchema = new mongoose.Schema(
           ref: "Product",
         },
 
-        quantity: {
-          type: Number,
-          default: 1,
+        name: {
+          type: String,
+          required: true,
         },
 
         price: {
+          type: Number,
+          required: true,
+        },
+
+        quantity: {
+          type: Number,
+          default: 1,
+          min: 1,
+        },
+
+        total: {
           type: Number,
           required: true,
         },
@@ -61,33 +102,31 @@ const bookingSchema = new mongoose.Schema(
 
     roomTotal: {
       type: Number,
-      default: 0,
+      required: true,
+      min: 0,
     },
 
     productTotal: {
       type: Number,
       default: 0,
+      min: 0,
     },
 
     discountAmount: {
       type: Number,
       default: 0,
+      min: 0,
     },
 
     finalTotal: {
       type: Number,
       required: true,
+      min: 0,
     },
 
     status: {
       type: String,
-      enum: [
-        "pending",
-        "confirmed",
-        "completed",
-        "cancelled",
-        "refunded",
-      ],
+      enum: ["pending", "confirmed", "completed", "cancelled", "refunded"],
       default: "pending",
     },
 
@@ -107,5 +146,9 @@ const bookingSchema = new mongoose.Schema(
     collection: "bookings",
   }
 );
+
+bookingSchema.index({ roomId: 1, bookingDate: 1, slotId: 1 });
+bookingSchema.index({ customerId: 1 });
+bookingSchema.index({ branchId: 1 });
 
 module.exports = mongoose.model("Booking", bookingSchema);

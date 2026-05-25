@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const roomTypeSchema = new mongoose.Schema(
+const holidaySchema = new mongoose.Schema(
   {
     name: {
       type: String,
@@ -8,15 +8,15 @@ const roomTypeSchema = new mongoose.Schema(
       trim: true,
     },
 
+    date: {
+      type: Date,
+      required: true,
+      unique: true,
+    },
+
     description: {
       type: String,
       default: "",
-    },
-
-    capacity: {
-      type: Number,
-      required: true,
-      min: 1,
     },
 
     isActive: {
@@ -26,8 +26,8 @@ const roomTypeSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-    collection: "room_types",
+    collection: "holidays",
   }
 );
 
-module.exports = mongoose.model("RoomType", roomTypeSchema);
+module.exports = mongoose.model("Holiday", holidaySchema);

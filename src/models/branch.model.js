@@ -17,6 +17,7 @@ const branchSchema = new mongoose.Schema(
     phone: {
       type: String,
       trim: true,
+      default: "",
     },
 
     openingTime: {

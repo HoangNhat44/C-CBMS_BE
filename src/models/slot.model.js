@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const roomTypeSchema = new mongoose.Schema(
+const slotSchema = new mongoose.Schema(
   {
     name: {
       type: String,
@@ -8,15 +8,14 @@ const roomTypeSchema = new mongoose.Schema(
       trim: true,
     },
 
-    description: {
+    startTime: {
       type: String,
-      default: "",
+      required: true,
     },
 
-    capacity: {
-      type: Number,
+    endTime: {
+      type: String,
       required: true,
-      min: 1,
     },
 
     isActive: {
@@ -26,8 +25,8 @@ const roomTypeSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-    collection: "room_types",
+    collection: "slots",
   }
 );
 
-module.exports = mongoose.model("RoomType", roomTypeSchema);
+module.exports = mongoose.model("Slot", slotSchema);

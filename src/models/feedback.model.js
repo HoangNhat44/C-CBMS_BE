@@ -6,6 +6,7 @@ const feedbackSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Booking",
       required: true,
+      unique: true,
     },
 
     customerId: {
@@ -28,9 +29,9 @@ const feedbackSchema = new mongoose.Schema(
 
     rating: {
       type: Number,
+      required: true,
       min: 1,
       max: 5,
-      required: true,
     },
 
     comment: {

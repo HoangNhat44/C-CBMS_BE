@@ -23,11 +23,7 @@ const roomSchema = new mongoose.Schema(
     capacity: {
       type: Number,
       required: true,
-    },
-
-    pricePerHour: {
-      type: Number,
-      required: true,
+      min: 1,
     },
 
     images: [

@@ -15,7 +15,8 @@ app.get("/", (req, res) => {
   });
 });
 
-app.use("/api/users", routes);
+app.use("/api/users", routes.accountRoutes);
+app.use("/api/branches", routes.branchRoutes);
 
 const startServer = async () => {
   await connectDB();

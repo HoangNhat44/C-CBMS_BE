@@ -1,12 +1,17 @@
 const mongoose = require("mongoose");
 
-const paymentSchema = new mongoose.Schema(
+const refundSchema = new mongoose.Schema(
   {
     bookingId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Booking",
       required: true,
-      unique: true,
+    },
+
+    paymentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Payment",
+      required: true,
     },
 
     customerId: {
@@ -21,32 +26,32 @@ const paymentSchema = new mongoose.Schema(
       min: 0,
     },
 
-    method: {
+    reason: {
       type: String,
-      enum: ["cash", "bank_transfer", "momo", "vnpay"],
-      default: "cash",
+      required: true,
+      trim: true,
     },
 
     status: {
       type: String,
-      enum: ["pending", "success", "failed", "refunded"],
+      enum: ["pending", "approved", "rejected", "refunded"],
       default: "pending",
     },
 
-    transactionCode: {
-      type: String,
-      default: "",
+    requestedAt: {
+      type: Date,
+      default: Date.now,
     },
 
-    paidAt: {
+    processedAt: {
       type: Date,
       default: null,
     },
   },
   {
     timestamps: true,
-    collection: "payments",
+    collection: "refunds",
   }
 );
 
-module.exports = mongoose.model("Payment", paymentSchema);
+module.exports = mongoose.model("Refund", refundSchema);
