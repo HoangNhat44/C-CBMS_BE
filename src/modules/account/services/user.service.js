@@ -1,4 +1,5 @@
 const User = require("../../../models/users.model");
+const { EmailService } = require("../../email/services/email.service");
 
 class UserService {
   // Lấy tất cả users
@@ -56,16 +57,34 @@ class UserService {
   // Cập nhật user
   async updateUser(userId, updateData) {
     try {
-      const user = await User.findByIdAndUpdate(userId, updateData, {
-        new: true,
-        runValidators: true,
-      });
-      if (!user) {
+      const existingUser = await User.findById(userId);
+      if (!existingUser) {
         return {
           success: false,
           message: "User not found",
         };
       }
+
+      const wasInactive = !existingUser.isActive;
+      const willActivate = updateData.isActive === true;
+
+      const user = await User.findByIdAndUpdate(userId, updateData, {
+        new: true,
+        runValidators: true,
+      });
+
+      if (wasInactive && willActivate) {
+        try {
+          await EmailService.sendRegistrationEmail({
+            to: user.email,
+            fullName: user.fullName,
+            isActive: true,
+          });
+        } catch (emailError) {
+          console.error("[User] Activation email failed:", emailError.message);
+        }
+      }
+
       return {
         success: true,
         data: user,
