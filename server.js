@@ -23,6 +23,7 @@ app.get("/", (req, res) => {
 app.use("/api/users", routes.accountRoutes);
 app.use("/api/branches", routes.branchRoutes);
 app.use("/api/auth", routes.authRoutes);
+app.use("/api/products", routes.productRoutes);
 
 const startServer = async () => {
   await connectDB();
