@@ -267,6 +267,41 @@ class AuthService {
     };
   }
 
+  async changePassword({ userId, currentPassword, newPassword }) {
+    if (!userId || !currentPassword || !newPassword) {
+      return { success: false, statusCode: 400, message: "Missing required fields." };
+    }
+
+    const passwordCheck = validatePasswordStrength(newPassword);
+    if (!passwordCheck.valid) {
+      return {
+        success: false,
+        statusCode: 400,
+        message: passwordCheck.errors[0],
+        errors: passwordCheck.errors,
+      };
+    }
+
+    const user = await User.findById(userId).select("+password");
+    if (!user) {
+      return { success: false, statusCode: 404, message: "User not found." };
+    }
+
+    const isPasswordValid = await comparePassword(currentPassword, user.password);
+    if (!isPasswordValid) {
+      return { success: false, statusCode: 401, message: "Mật khẩu hiện tại không đúng." };
+    }
+
+    user.password = await hashPassword(newPassword);
+    await user.save({ validateBeforeSave: false });
+
+    return {
+      success: true,
+      statusCode: 200,
+      message: "Đổi mật khẩu thành công.",
+    };
+  }
+
   async verifyAuthToken(token) {
     if (!token) {
       return { success: false, statusCode: 401, message: "No token provided." };

@@ -99,6 +99,48 @@ class AuthController {
     }
   }
 
+  async changePassword(req, res) {
+    try {
+      const authHeader = req.headers.authorization || "";
+      const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+      if (!token) {
+        return res.status(401).json({ success: false, message: "No token provided." });
+      }
+
+      const verifyResult = await authService.verifyAuthToken(token);
+      if (!verifyResult.success || !verifyResult.data || !verifyResult.data.user?.id) {
+        return res.status(401).json({ success: false, message: "Invalid or expired token." });
+      }
+
+      const { currentPassword, newPassword, confirmPassword } = req.body;
+
+      if (newPassword !== confirmPassword) {
+        return res.status(400).json({
+          success: false,
+          message: "Xác nhận mật khẩu không khớp.",
+        });
+      }
+
+      const result = await authService.changePassword({
+        userId: verifyResult.data.user.id,
+        currentPassword,
+        newPassword
+      });
+
+      return res.status(result.statusCode).json({
+        success: result.success,
+        message: result.message,
+        ...(result.errors && { errors: result.errors }),
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: "Lỗi hệ thống khi đổi mật khẩu.",
+        error: error.message,
+      });
+    }
+  }
+
   async verifyToken(req, res) {
     try {
       const authHeader = req.headers.authorization || "";
