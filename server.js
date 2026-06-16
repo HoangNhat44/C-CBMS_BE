@@ -21,6 +21,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/users", routes.accountRoutes);
+app.use("/api/roles", routes.roleRoutes);
 app.use("/api/branches", routes.branchRoutes);
 app.use("/api/auth", routes.authRoutes);
 
