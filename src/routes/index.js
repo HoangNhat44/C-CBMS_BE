@@ -5,6 +5,7 @@ const authRoutes = require("../modules/authenticaiton/routes/auth.route");
 const bookingRoutes = require("../modules/booking/routes/booking.route");
 const productRoutes = require("../modules/product/product.route");
 const paymentsRoutes = require("../modules/payments/routes/payments.route");
+const promotionRoutes = require("../modules/promotion/promotion.route");
 
 module.exports = {
   accountRoutes,
@@ -12,5 +13,6 @@ module.exports = {
   authRoutes,
   bookingRoutes,
   productRoutes,
-  paymentsRoutes
+  paymentsRoutes,
+  promotionRoutes
 };
