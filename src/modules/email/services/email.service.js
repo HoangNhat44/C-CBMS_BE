@@ -5,6 +5,7 @@ const EMAIL_TYPES = {
   REGISTRATION_PENDING: "registration_pending",
   PASSWORD_RESET_REQUEST: "password_reset_request",
   PASSWORD_RESET_SUCCESS: "password_reset_success",
+  PAYMENT_SUCCESS: "payment_success",
 };
 
 const BRAND = {
@@ -132,6 +133,29 @@ const templates = {
     }),
     text: `Mật khẩu C-CBMS đã được cập nhật lúc ${resetAt}. Đăng nhập: ${loginUrl}`,
   }),
+
+  [EMAIL_TYPES.PAYMENT_SUCCESS]: ({ fullName, bookingId, amount, paymentMethod, date }) => ({
+    subject: `[${BRAND.name}] Thanh toán thành công đơn đặt lịch #${bookingId}`,
+    html: buildBaseHtml({
+      title: "Thanh toán thành công",
+      preheader: `Cảm ơn bạn đã thanh toán cho đơn hàng #${bookingId}.`,
+      bodyHtml: `
+        <h1 style="margin:0 0 12px;font-size:24px;color:#111827;">Thanh toán thành công</h1>
+        <p style="line-height:1.6;margin:0 0 12px;">Xin chào ${fullName},</p>
+        <p style="line-height:1.6;margin:0 0 12px;">
+          Chúng tôi xác nhận đã nhận được khoản thanh toán cho đơn đặt phòng phim/café của bạn:
+        </p>
+        <div style="background:#f3f4f6;padding:16px;border-radius:8px;margin-bottom:16px;">
+          <p style="margin:4px 0;"><strong>Mã đơn hàng:</strong> #${bookingId}</p>
+          <p style="margin:4px 0;"><strong>Số tiền đã trả:</strong> ${new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount)}</p>
+          <p style="margin:4px 0;"><strong>Phương thức:</strong> ${paymentMethod}</p>
+          <p style="margin:4px 0;"><strong>Thời gian:</strong> ${date}</p>
+        </div>
+        <p style="line-height:1.6;margin:0 0 12px;">Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi!</p>
+      `,
+    }),
+    text: `Chào ${fullName}, bạn đã thanh toán thành công ${amount} VND cho đơn đặt phòng #${bookingId} qua ${paymentMethod} lúc ${date}.`,
+  }),
 };
 
 class EmailService {
@@ -185,6 +209,21 @@ class EmailService {
     const loginUrl = `${getFrontendUrl()}/login`;
     const resetAt = new Date().toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" });
     return this.send(EMAIL_TYPES.PASSWORD_RESET_SUCCESS, { to, fullName, loginUrl, resetAt });
+  }
+
+  async sendPaymentSuccessEmail({ to, fullName, booking, payment }) {
+    const amount = payment.amountPaid || payment.amount;
+    const paymentMethod = payment.method === "payos" ? "Chuyển khoản VietQR (PayOS)" : payment.method;
+    const date = (payment.paidAt || new Date()).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" });
+    const bookingId = booking._id.toString();
+    return this.send(EMAIL_TYPES.PAYMENT_SUCCESS, {
+      to,
+      fullName,
+      bookingId,
+      amount,
+      paymentMethod,
+      date,
+    });
   }
 }
 

@@ -49,6 +49,7 @@ app.use("/api/branches", routes.branchRoutes);
 app.use("/api/bookings", routes.bookingRoutes);
 app.use("/api/auth", routes.authRoutes);
 app.use("/api/products", routes.productRoutes);
+app.use("/api/payments", routes.paymentsRoutes);
 
 const startServer = async () => {
   await connectDB();

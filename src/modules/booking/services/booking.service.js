@@ -55,7 +55,10 @@ class BookingService {
       // Find conflicting bookings for this room, date, and slot
       const conflictingBooking = await Booking.findOne({
         roomId,
-        slotId,
+        $or: [
+          { slotId: slotId },
+          { slotIds: slotId }
+        ],
         bookingDate: { $gte: startOfDay, $lte: endOfDay },
         status: { $in: ["pending", "confirmed", "completed"] }
       });
@@ -94,6 +97,7 @@ class BookingService {
         .populate("branchId", "name address phone")
         .populate("roomId", "roomName roomTypeId capacity")
         .populate("slotId", "name startTime endTime")
+        .populate("slotIds", "name startTime endTime")
         .sort({ createdAt: -1 });
 
       return {
@@ -112,7 +116,8 @@ class BookingService {
         .populate("customerId", "fullName email phone")
         .populate("branchId", "name address phone")
         .populate("roomId", "roomName roomTypeId capacity")
-        .populate("slotId", "name startTime endTime");
+        .populate("slotId", "name startTime endTime")
+        .populate("slotIds", "name startTime endTime");
 
       if (!booking) {
         return {
@@ -138,6 +143,7 @@ class BookingService {
         branchId,
         roomId,
         slotId,
+        slotIds,
         bookingDate,
         products = [],
         note = "",
@@ -166,43 +172,83 @@ class BookingService {
         return { success: false, statusCode: 400, message: "Room does not belong to the specified branch." };
       }
 
-      // 4. Validate slot existence
-      const slot = await Slot.findById(slotId);
-      if (!slot || !slot.isActive) {
-        return { success: false, statusCode: 404, message: "Slot not found or inactive." };
+      // 4. Resolve slots
+      const resolvedSlotIds = slotIds && slotIds.length > 0 ? slotIds : (slotId ? [slotId] : []);
+      if (resolvedSlotIds.length === 0) {
+        return { success: false, statusCode: 400, message: "At least one slot must be selected." };
+      }
+
+      const slots = await Slot.find({ _id: { $in: resolvedSlotIds }, isActive: true });
+      if (slots.length !== resolvedSlotIds.length) {
+        return { success: false, statusCode: 400, message: "One or more selected slots are invalid or inactive." };
       }
 
       // 5. Check room availability (prevent double booking)
-      const availability = await this.checkAvailability(roomId, bookingDate, slotId);
-      if (!availability.available) {
-        return { success: false, statusCode: 409, message: availability.reason };
+      for (const sId of resolvedSlotIds) {
+        const availability = await this.checkAvailability(roomId, bookingDate, sId);
+        if (!availability.available) {
+          return { success: false, statusCode: 409, message: `Slot is already booked: ${availability.reason}` };
+        }
       }
 
-      // 6. Calculate slot hours
-      const totalHours = calculateDurationInHours(slot.startTime, slot.endTime);
+      // 6. Calculate total slot hours
+      let totalHours = 0;
+      for (const slotItem of slots) {
+        totalHours += calculateDurationInHours(slotItem.startTime, slotItem.endTime);
+      }
 
       // 7. Determine day type (weekday, weekend only)
       const dayType = getDayType(bookingDate);
 
-      // 8. Fetch room price for priceSnapshot
-      const priceConfig = await RoomPrice.findOne({
+      // 8. Fetch room price for priceSnapshot and roomPriceSnapshots
+      let roomTotal = 0;
+      const roomPriceSnapshots = [];
+
+      for (const slotItem of slots) {
+        const priceConfig = await RoomPrice.findOne({
+          branchId,
+          roomTypeId: room.roomTypeId,
+          slotId: slotItem._id,
+          dayType,
+          isActive: true
+        });
+
+        if (!priceConfig) {
+          return {
+            success: false,
+            statusCode: 400,
+            message: `Pricing is not configured for Slot ${slotItem.name} at this branch.`
+          };
+        }
+
+        const pricePerHour = priceConfig.pricePerHour;
+        const slotHours = calculateDurationInHours(slotItem.startTime, slotItem.endTime);
+        roomTotal += pricePerHour * slotHours;
+
+        roomPriceSnapshots.push({
+          slotId: slotItem._id,
+          pricePerHour
+        });
+      }
+
+      // Keep legacy snapshot compatibility by referencing the first slot
+      const firstPriceConfig = await RoomPrice.findOne({
         branchId,
         roomTypeId: room.roomTypeId,
-        slotId,
+        slotId: resolvedSlotIds[0],
         dayType,
         isActive: true
       });
+      const roomPriceSnapshot = firstPriceConfig ? {
+        roomTypeId: room.roomTypeId,
+        slotId: resolvedSlotIds[0],
+        pricePerHour: firstPriceConfig.pricePerHour
+      } : undefined;
 
-      if (!priceConfig) {
-        return {
-          success: false,
-          statusCode: 400,
-          message: `Pricing is not configured for Room Type, Slot, and Day Type (${dayType}) at this branch.`
-        };
-      }
-
-      const pricePerHour = priceConfig.pricePerHour;
-      const roomTotal = pricePerHour * totalHours;
+      // Sort slots chronologically to set overall startTime and endTime
+      const sortedSlots = [...slots].sort((a, b) => a.startTime.localeCompare(b.startTime));
+      const overallStartTime = sortedSlots[0].startTime;
+      const overallEndTime = sortedSlots[sortedSlots.length - 1].endTime;
 
       // 9. Calculate product charges
       const parsedProducts = [];
@@ -239,17 +285,15 @@ class BookingService {
         customerId,
         branchId,
         roomId,
-        slotId,
+        slotId: resolvedSlotIds[0],
+        slotIds: resolvedSlotIds,
         bookingDate: new Date(bookingDate),
-        startTime: slot.startTime,
-        endTime: slot.endTime,
+        startTime: overallStartTime,
+        endTime: overallEndTime,
         totalHours,
         dayType,
-        roomPriceSnapshot: {
-          roomTypeId: room.roomTypeId,
-          slotId: slot._id,
-          pricePerHour
-        },
+        roomPriceSnapshot,
+        roomPriceSnapshots,
         products: parsedProducts,
         roomTotal,
         productTotal,
@@ -265,7 +309,8 @@ class BookingService {
         .populate("customerId", "fullName email phone")
         .populate("branchId", "name address phone")
         .populate("roomId", "roomName roomTypeId capacity")
-        .populate("slotId", "name startTime endTime");
+        .populate("slotId", "name startTime endTime")
+        .populate("slotIds", "name startTime endTime");
 
       return {
         success: true,
@@ -345,7 +390,8 @@ class BookingService {
           // Check if slot is booked
           const isBooked = bookings.some(b => 
             b.roomId.toString() === room._id.toString() && 
-            b.slotId.toString() === slot._id.toString()
+            (b.slotId.toString() === slot._id.toString() || 
+             (b.slotIds && b.slotIds.some(id => id.toString() === slot._id.toString())))
           );
 
           return {
@@ -353,6 +399,7 @@ class BookingService {
             name: slot.name,
             startTime: slot.startTime,
             endTime: slot.endTime,
+            timeType: slot.timeType,
             pricePerHour,
             price,
             isBooked
@@ -401,7 +448,8 @@ class BookingService {
         .populate("customerId", "fullName email phone")
         .populate("branchId", "name address phone")
         .populate("roomId", "roomName roomTypeId capacity")
-        .populate("slotId", "name startTime endTime");
+        .populate("slotId", "name startTime endTime")
+        .populate("slotIds", "name startTime endTime");
 
       if (!booking) {
         return {

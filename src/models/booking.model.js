@@ -26,6 +26,13 @@ const bookingSchema = new mongoose.Schema(
       required: true,
     },
 
+    slotIds: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Slot",
+      }
+    ],
+
     bookingDate: {
       type: Date,
       required: true,
@@ -69,6 +76,19 @@ const bookingSchema = new mongoose.Schema(
         required: true,
       },
     },
+
+    roomPriceSnapshots: [
+      {
+        slotId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Slot",
+        },
+        pricePerHour: {
+          type: Number,
+          required: true,
+        },
+      }
+    ],
 
     products: [
       {
@@ -148,6 +168,7 @@ const bookingSchema = new mongoose.Schema(
 );
 
 bookingSchema.index({ roomId: 1, bookingDate: 1, slotId: 1 });
+bookingSchema.index({ roomId: 1, bookingDate: 1, slotIds: 1 });
 bookingSchema.index({ customerId: 1 });
 bookingSchema.index({ branchId: 1 });
 

@@ -18,6 +18,12 @@ const slotSchema = new mongoose.Schema(
       required: true,
     },
 
+    timeType: {
+      type: String,
+      enum: ["standard", "golden"],
+      default: "standard",
+    },
+
     isActive: {
       type: Boolean,
       default: true,

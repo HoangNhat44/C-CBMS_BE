@@ -3,11 +3,13 @@ const branchRoutes = require("../modules/branch/branch.route");
 const authRoutes = require("../modules/authenticaiton/routes/auth.route");
 const bookingRoutes = require("../modules/booking/routes/booking.route");
 const productRoutes = require("../modules/product/product.route");
+const paymentsRoutes = require("../modules/payments/routes/payments.route");
 
 module.exports = {
   accountRoutes,
   branchRoutes,
   authRoutes,
   bookingRoutes,
-  productRoutes
+  productRoutes,
+  paymentsRoutes
 };
