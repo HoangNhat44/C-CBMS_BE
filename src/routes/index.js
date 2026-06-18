@@ -9,6 +9,7 @@ const promotionRoutes = require("../modules/promotion/promotion.route");
 
 module.exports = {
   accountRoutes,
+  roleRoutes,
   branchRoutes,
   authRoutes,
   bookingRoutes,
