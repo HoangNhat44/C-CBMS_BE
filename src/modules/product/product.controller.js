@@ -12,7 +12,7 @@ async function isStaffUser(req) {
     const decoded = verifyToken(token);
     const user = await User.findById(decoded.userId).populate("roleId");
     if (!user || !user.isActive) return false;
-    return ["admin", "owner", "staff"].includes(user.roleId.name);
+    return ["owner", "staff"].includes(user.roleId.name);
   } catch (error) {
     return false;
   }
@@ -74,6 +74,12 @@ class ProductController {
       if (!result.success) {
         return res.status(404).json(result);
       }
+
+      const isStaff = await isStaffUser(req);
+      if (!isStaff && !result.data.isActive) {
+        return res.status(404).json({ success: false, message: "Product not found" });
+      }
+
       res.json({
         message: "Get product successfully",
         ...result,

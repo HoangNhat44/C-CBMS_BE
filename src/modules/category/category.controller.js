@@ -12,7 +12,7 @@ async function isStaffUser(req) {
     const decoded = verifyToken(token);
     const user = await User.findById(decoded.userId).populate("roleId");
     if (!user || !user.isActive) return false;
-    return ["admin", "owner", "staff"].includes(user.roleId.name);
+    return ["owner", "staff"].includes(user.roleId.name);
   } catch (error) {
     return false;
   }
