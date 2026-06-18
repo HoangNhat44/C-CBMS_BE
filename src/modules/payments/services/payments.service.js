@@ -1,7 +1,7 @@
 const Payment = require("../../../models/payment.model");
 const Booking = require("../../../models/booking.model");
 const User = require("../../../models/users.model");
-const { EmailService } = require("../../email/services/email.service");
+const { EmailService } = require("../../authenticaiton/services/email.service");
 const { PayOS } = require("@payos/node");
 
 class PaymentsService {
