@@ -45,11 +45,13 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/users", routes.accountRoutes);
+app.use("/api/roles", routes.roleRoutes);
 app.use("/api/branches", routes.branchRoutes);
 app.use("/api/bookings", routes.bookingRoutes);
 app.use("/api/auth", routes.authRoutes);
 app.use("/api/products", routes.productRoutes);
 app.use("/api/payments", routes.paymentsRoutes);
+app.use("/api/promotions", routes.promotionRoutes);
 
 const startServer = async () => {
   await connectDB();

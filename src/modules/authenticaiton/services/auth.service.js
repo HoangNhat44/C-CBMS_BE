@@ -2,7 +2,7 @@ const crypto = require("crypto");
 
 const User = require("../../../models/users.model");
 const Role = require("../../../models/role.model");
-const { EmailService } = require("../../email/services/email.service");
+const { EmailService } = require("./email.service")
 const { hashPassword, comparePassword, validatePasswordStrength } = require("../../../utils/password.util");
 const { signToken, verifyToken } = require("../../../utils/jwt.util");
 
@@ -264,6 +264,41 @@ class AuthService {
       success: true,
       statusCode: 200,
       message: "Password updated successfully! You can now sign in with your new credentials.",
+    };
+  }
+
+  async changePassword({ userId, currentPassword, newPassword }) {
+    if (!userId || !currentPassword || !newPassword) {
+      return { success: false, statusCode: 400, message: "Missing required fields." };
+    }
+
+    const passwordCheck = validatePasswordStrength(newPassword);
+    if (!passwordCheck.valid) {
+      return {
+        success: false,
+        statusCode: 400,
+        message: passwordCheck.errors[0],
+        errors: passwordCheck.errors,
+      };
+    }
+
+    const user = await User.findById(userId).select("+password");
+    if (!user) {
+      return { success: false, statusCode: 404, message: "User not found." };
+    }
+
+    const isPasswordValid = await comparePassword(currentPassword, user.password);
+    if (!isPasswordValid) {
+      return { success: false, statusCode: 401, message: "Mật khẩu hiện tại không đúng." };
+    }
+
+    user.password = await hashPassword(newPassword);
+    await user.save({ validateBeforeSave: false });
+
+    return {
+      success: true,
+      statusCode: 200,
+      message: "Đổi mật khẩu thành công.",
     };
   }
 

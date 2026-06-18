@@ -1,11 +1,11 @@
 const User = require("../../../models/users.model");
-const { EmailService } = require("../../email/services/email.service");
+const { EmailService } = require("../../authenticaiton/services/email.service")
 
 class UserService {
   // Lấy tất cả users
   async getAllUsers() {
     try {
-      const users = await User.find().sort({ createdAt: -1 });
+      const users = await User.find().populate("roleId", "name").sort({ createdAt: -1 });
       return {
         success: true,
         data: users,
@@ -18,7 +18,7 @@ class UserService {
   // Lấy user theo ID
   async getUserById(userId) {
     try {
-      const user = await User.findById(userId);
+      const user = await User.findById(userId).populate("roleId", "name");
       if (!user) {
         return {
           success: false,
@@ -37,8 +37,12 @@ class UserService {
   // Tạo user mới
   async createUser(userData) {
     try {
+      if (userData.password) {
+        const { hashPassword } = require("../../../utils/password.util");
+        userData.password = await hashPassword(userData.password);
+      }
       const user = await User.create(userData);
-      const createdUser = await User.findById(user._id);
+      const createdUser = await User.findById(user._id).populate("roleId", "name");
       return {
         success: true,
         data: createdUser,
@@ -57,6 +61,11 @@ class UserService {
   // Cập nhật user
   async updateUser(userId, updateData) {
     try {
+      if (updateData.password) {
+        const { hashPassword } = require("../../../utils/password.util");
+        updateData.password = await hashPassword(updateData.password);
+      }
+
       const existingUser = await User.findById(userId);
       if (!existingUser) {
         return {
@@ -85,9 +94,11 @@ class UserService {
         }
       }
 
+      const populatedUser = await User.findById(user._id).populate("roleId", "name");
+
       return {
         success: true,
-        data: user,
+        data: populatedUser,
       };
     } catch (error) {
       throw new Error(`Failed to update user: ${error.message}`);

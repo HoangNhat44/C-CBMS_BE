@@ -10,8 +10,8 @@ const promotionSchema = new mongoose.Schema(
 
     code: {
       type: String,
-      required: true,
       unique: true,
+      sparse: true,
       uppercase: true,
       trim: true,
     },
@@ -30,12 +30,10 @@ const promotionSchema = new mongoose.Schema(
 
     startDate: {
       type: Date,
-      required: true,
     },
 
     endDate: {
       type: Date,
-      required: true,
     },
 
     branchIds: [
