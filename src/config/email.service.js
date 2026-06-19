@@ -1,4 +1,4 @@
-const { createEmailTransporter, getEmailFromAddress, getFrontendUrl } = require("../../../config/email");
+const { createEmailTransporter, getEmailFromAddress, getFrontendUrl } = require("./email");
 
 const EMAIL_TYPES = {
   REGISTRATION_WELCOME: "registration_welcome",

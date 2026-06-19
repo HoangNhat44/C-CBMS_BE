@@ -1,5 +1,5 @@
 const User = require("../../../models/users.model");
-const { EmailService } = require("../../authenticaiton/services/email.service")
+const { EmailService } = require("../../../config/email.service");
 
 class UserService {
   // Lấy tất cả users

@@ -43,6 +43,18 @@ const promotionSchema = new mongoose.Schema(
       },
     ],
 
+    usedCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    maxUsage: {
+      type: Number,
+      default: null,
+      min: 1,
+    },
+
     isActive: {
       type: Boolean,
       default: true,
