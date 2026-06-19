@@ -59,6 +59,10 @@ const startServer = async () => {
   server.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
   });
+
+  // Initialize auto-cancellation for expired pending bookings
+  const bookingService = require("./src/modules/booking/services/booking.service");
+  bookingService.startAutoCancelJob(io);
 };
 
 startServer();

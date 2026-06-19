@@ -2,7 +2,7 @@ const crypto = require("crypto");
 
 const User = require("../../../models/users.model");
 const Role = require("../../../models/role.model");
-const { EmailService } = require("./email.service")
+const { EmailService } = require("../../../config/email.service");
 const { hashPassword, comparePassword, validatePasswordStrength } = require("../../../utils/password.util");
 const { signToken, verifyToken } = require("../../../utils/jwt.util");
 

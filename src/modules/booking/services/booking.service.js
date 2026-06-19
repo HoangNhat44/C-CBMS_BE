@@ -140,6 +140,7 @@ class BookingService {
     try {
       const {
         customerId,
+        guestInfo,
         branchId,
         roomId,
         slotId,
@@ -150,8 +151,49 @@ class BookingService {
         discountAmount = 0
       } = bookingData;
 
+      let resolvedCustomerId = customerId;
+
+      if (!resolvedCustomerId) {
+        if (!guestInfo || !guestInfo.fullName || !guestInfo.email || !guestInfo.phone) {
+          return {
+            success: false,
+            statusCode: 400,
+            message: "Thông tin khách hàng hoặc thông tin khách vãng lai (Tên, Email, SĐT) là bắt buộc."
+          };
+        }
+
+        const normalizedEmail = guestInfo.email.trim().toLowerCase();
+        let guestUser = await User.findOne({ email: normalizedEmail });
+
+        if (!guestUser) {
+          const Role = require("../../../models/role.model");
+          const role = await Role.findOne({ name: "customer", isActive: true });
+          if (!role) {
+            return {
+              success: false,
+              statusCode: 500,
+              message: "Không tìm thấy vai trò 'customer' trong hệ thống."
+            };
+          }
+
+          const { hashPassword } = require("../../../utils/password.util");
+          const defaultPassword = "GuestPassword123!";
+          const hashedPassword = await hashPassword(defaultPassword);
+
+          guestUser = await User.create({
+            fullName: guestInfo.fullName.trim(),
+            email: normalizedEmail,
+            phone: guestInfo.phone.trim(),
+            password: hashedPassword,
+            roleId: role._id,
+            isActive: true
+          });
+        }
+        resolvedCustomerId = guestUser._id;
+      }
+
       // 1. Validate customer existence
-      const customer = await User.findById(customerId);
+      const customer = await User.findById(resolvedCustomerId);
       if (!customer) {
         return { success: false, statusCode: 404, message: "Customer not found." };
       }
@@ -282,7 +324,7 @@ class BookingService {
 
       // 11. Save booking to DB
       const booking = await Booking.create({
-        customerId,
+        customerId: resolvedCustomerId,
         branchId,
         roomId,
         slotId: resolvedSlotIds[0],
@@ -311,6 +353,18 @@ class BookingService {
         .populate("roomId", "roomName roomTypeId capacity")
         .populate("slotId", "name startTime endTime")
         .populate("slotIds", "name startTime endTime");
+
+      // Send success email asynchronously
+      if (populatedBooking && populatedBooking.customerId && populatedBooking.customerId.email) {
+        const { EmailService } = require("../../../config/email.service");
+        EmailService.sendBookingSuccessEmail({
+          to: populatedBooking.customerId.email,
+          fullName: populatedBooking.customerId.fullName || "Quý khách",
+          booking: populatedBooking
+        }).catch((err) => {
+          console.error("[Email Error] Failed to send booking success email:", err.message);
+        });
+      }
 
       return {
         success: true,
@@ -488,6 +542,56 @@ class BookingService {
     } catch (error) {
       throw new Error(`Failed to delete booking: ${error.message}`);
     }
+  }
+
+  // Start the interval job to auto-cancel pending bookings older than 15 minutes
+  startAutoCancelJob(io) {
+    const Payment = require("../../../models/payment.model");
+    
+    setInterval(async () => {
+      try {
+        const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+        
+        // Find pending bookings older than 15 minutes
+        const expiredBookings = await Booking.find({
+          status: "pending",
+          createdAt: { $lt: fifteenMinutesAgo }
+        });
+
+        if (expiredBookings.length > 0) {
+          const expiredIds = expiredBookings.map((b) => b._id);
+
+          // Cancel bookings
+          await Booking.updateMany(
+            { _id: { $in: expiredIds } },
+            { $set: { status: "cancelled" } }
+          );
+
+          // Expire corresponding payments
+          await Payment.updateMany(
+            { bookingId: { $in: expiredIds }, status: { $in: ["pending", "processing"] } },
+            { $set: { status: "expired" } }
+          );
+
+          console.log(`[Auto-Cancel] Cancelled ${expiredBookings.length} expired pending bookings.`);
+
+          // Notify clients in real-time
+          expiredBookings.forEach((booking) => {
+            if (io) {
+              io.emit("booking:updated", {
+                branchId: booking.branchId,
+                roomId: booking.roomId,
+                slotId: booking.slotId,
+                bookingDate: booking.bookingDate,
+                status: "cancelled"
+              });
+            }
+          });
+        }
+      } catch (error) {
+        console.error("[Auto-Cancel Error] Failed to run auto-cancel job:", error);
+      }
+    }, 60 * 1000);
   }
 }
 

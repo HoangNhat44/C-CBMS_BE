@@ -1,4 +1,4 @@
-const { createEmailTransporter, getEmailFromAddress, getFrontendUrl } = require("../../../config/email");
+const { createEmailTransporter, getEmailFromAddress, getFrontendUrl } = require("./email");
 
 const EMAIL_TYPES = {
   REGISTRATION_WELCOME: "registration_welcome",
@@ -6,6 +6,7 @@ const EMAIL_TYPES = {
   PASSWORD_RESET_REQUEST: "password_reset_request",
   PASSWORD_RESET_SUCCESS: "password_reset_success",
   PAYMENT_SUCCESS: "payment_success",
+  BOOKING_SUCCESS: "booking_success",
 };
 
 const BRAND = {
@@ -156,6 +157,32 @@ const templates = {
     }),
     text: `Chào ${fullName}, bạn đã thanh toán thành công ${amount} VND cho đơn đặt phòng #${bookingId} qua ${paymentMethod} lúc ${date}.`,
   }),
+
+  [EMAIL_TYPES.BOOKING_SUCCESS]: ({ fullName, bookingId, branchName, roomName, bookingDate, timeRange, totalHours, finalTotal }) => ({
+    subject: `[${BRAND.name}] Đặt phòng thành công - Mã đơn #${bookingId}`,
+    html: buildBaseHtml({
+      title: "Đặt phòng thành công",
+      preheader: `Đơn đặt phòng #${bookingId} của bạn đã được ghi nhận thành công.`,
+      bodyHtml: `
+        <h1 style="margin:0 0 12px;font-size:24px;color:#111827;">Đặt phòng thành công</h1>
+        <p style="line-height:1.6;margin:0 0 12px;">Xin chào <strong>${fullName}</strong>,</p>
+        <p style="line-height:1.6;margin:0 0 12px;">
+          Chúng tôi xin thông báo đơn đặt phòng của bạn đã được ghi nhận thành công trên hệ thống ${BRAND.name}:
+        </p>
+        <div style="background:#f3f4f6;padding:16px;border-radius:8px;margin-bottom:16px;">
+          <p style="margin:4px 0;"><strong>Mã đơn hàng:</strong> #${bookingId}</p>
+          <p style="margin:4px 0;"><strong>Chi nhánh:</strong> ${branchName}</p>
+          <p style="margin:4px 0;"><strong>Phòng:</strong> ${roomName}</p>
+          <p style="margin:4px 0;"><strong>Ngày đặt:</strong> ${bookingDate}</p>
+          <p style="margin:4px 0;"><strong>Khung giờ:</strong> ${timeRange} (${totalHours} giờ)</p>
+          <p style="margin:4px 0;"><strong>Tổng tiền:</strong> ${new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(finalTotal)}</p>
+        </div>
+        <p style="line-height:1.6;margin:0 0 12px;">Đơn đặt phòng của bạn hiện đang ở trạng thái <strong>Chờ xác nhận</strong> (Pending). Vui lòng hoàn tất thanh toán để giữ chỗ.</p>
+        <p style="line-height:1.6;margin:0 0 12px;">Cảm ơn bạn đã lựa chọn dịch vụ của chúng tôi!</p>
+      `,
+    }),
+    text: `Chào ${fullName}, đơn đặt phòng #${bookingId} tại ${branchName}, phòng ${roomName} ngày ${bookingDate} lúc ${timeRange} đã được tạo thành công với tổng tiền ${finalTotal} VND.`,
+  }),
 };
 
 class EmailService {
@@ -223,6 +250,31 @@ class EmailService {
       amount,
       paymentMethod,
       date,
+    });
+  }
+
+  async sendBookingSuccessEmail({ to, fullName, booking }) {
+    const bookingId = booking._id.toString();
+    const branchName = booking.branchId?.name || "Chi nhánh C-CBMS";
+    const roomName = booking.roomId?.roomName || "Phòng C-CBMS";
+    
+    const d = new Date(booking.bookingDate);
+    const dateStr = d.toLocaleDateString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" });
+
+    const timeRange = `${booking.startTime} - ${booking.endTime}`;
+    const totalHours = booking.totalHours;
+    const finalTotal = booking.finalTotal;
+
+    return this.send(EMAIL_TYPES.BOOKING_SUCCESS, {
+      to,
+      fullName,
+      bookingId,
+      branchName,
+      roomName,
+      bookingDate: dateStr,
+      timeRange,
+      totalHours,
+      finalTotal,
     });
   }
 }

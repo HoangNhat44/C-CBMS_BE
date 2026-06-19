@@ -56,14 +56,29 @@ class BookingController {
   // Get all bookings with query filters
   async getAllBookings(req, res) {
     try {
+      const roleName = req.user.roleId?.name;
+
       const filters = {
-        customerId: req.query.customerId,
-        branchId: req.query.branchId,
         roomId: req.query.roomId,
         bookingDate: req.query.bookingDate,
         status: req.query.status,
         paymentStatus: req.query.paymentStatus
       };
+
+      // Apply RBAC filters based on role
+      if (roleName === "customer") {
+        filters.customerId = req.user._id;
+      } else if (roleName === "staff") {
+        filters.branchId = req.user.branchId;
+      } else if (roleName === "owner") {
+        if (req.query.customerId) filters.customerId = req.query.customerId;
+        if (req.query.branchId) filters.branchId = req.query.branchId;
+      } else {
+        return res.status(403).json({
+          success: false,
+          message: "Forbidden. Insufficient permissions."
+        });
+      }
 
       const result = await bookingService.getAllBookings(filters);
 
@@ -89,6 +104,34 @@ class BookingController {
 
       if (!result.success) {
         return res.status(404).json(result);
+      }
+
+      const booking = result.data;
+      const roleName = req.user.roleId?.name;
+
+      // Access control check for detailed view
+      if (roleName === "customer") {
+        const bookingCustomerId = booking.customerId ? (booking.customerId._id ? booking.customerId._id.toString() : booking.customerId.toString()) : null;
+        if (bookingCustomerId !== req.user._id.toString()) {
+          return res.status(403).json({
+            success: false,
+            message: "Forbidden. You are not allowed to view this booking."
+          });
+        }
+      } else if (roleName === "staff") {
+        const bookingBranchId = booking.branchId ? (booking.branchId._id ? booking.branchId._id.toString() : booking.branchId.toString()) : null;
+        const staffBranchId = req.user.branchId ? req.user.branchId.toString() : null;
+        if (bookingBranchId !== staffBranchId) {
+          return res.status(403).json({
+            success: false,
+            message: "Forbidden. You are not allowed to view bookings from other branches."
+          });
+        }
+      } else if (roleName !== "owner") {
+        return res.status(403).json({
+          success: false,
+          message: "Forbidden. Insufficient permissions."
+        });
       }
 
       return res.status(200).json({
