@@ -3,7 +3,8 @@ const promotionService = require("./promotion.service");
 class PromotionController {
   async getAllPromotions(req, res) {
     try {
-      const result = await promotionService.getAllPromotions();
+      const { branchId } = req.query;
+      const result = await promotionService.getAllPromotions(branchId);
       res.json({
         message: "Get promotions successfully",
         ...result,
@@ -49,6 +50,80 @@ class PromotionController {
       res.status(500).json({
         success: false,
         message: "Failed to update promotion",
+        error: error.message,
+      });
+    }
+  }
+
+  async applyPromotion(req, res) {
+    try {
+      const { code, branchId } = req.body;
+      if (!code) {
+        return res.status(400).json({ success: false, message: "Vui lòng nhập mã giảm giá" });
+      }
+      const result = await promotionService.applyPromotion(code, branchId);
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: "Failed to apply promotion",
+        error: error.message,
+      });
+    }
+  }
+
+  async calculateDiscount(req, res) {
+    try {
+      const { originalPrice, promotionIds } = req.body;
+      if (originalPrice === undefined || originalPrice < 0) {
+        return res.status(400).json({ success: false, message: "Giá trị gốc không hợp lệ" });
+      }
+      const result = await promotionService.calculateDiscount(originalPrice, promotionIds);
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: "Failed to calculate discount",
+        error: error.message,
+      });
+    }
+  }
+
+  async confirmUsage(req, res) {
+    try {
+      const { promotionIds } = req.body;
+      const result = await promotionService.confirmUsage(promotionIds);
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: "Failed to confirm usage",
+        error: error.message,
+      });
+    }
+  }
+
+  async revertUsage(req, res) {
+    try {
+      const { promotionIds } = req.body;
+      const result = await promotionService.revertUsage(promotionIds);
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: "Failed to revert usage",
         error: error.message,
       });
     }

@@ -138,6 +138,13 @@ const bookingSchema = new mongoose.Schema(
       min: 0,
     },
 
+    appliedPromotions: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Promotion",
+      }
+    ],
+
     finalTotal: {
       type: Number,
       required: true,
