@@ -6,6 +6,9 @@ const bookingRoutes = require("../modules/booking/routes/booking.route");
 const productRoutes = require("../modules/product/product.route");
 const paymentsRoutes = require("../modules/payments/routes/payments.route");
 const promotionRoutes = require("../modules/promotion/promotion.route");
+const roomRoutes = require("../modules/room/room.route");
+const roomTypeRoutes = require("../modules/roomType/roomType.route");
+const newsRoutes = require("../modules/news/news.route");
 
 module.exports = {
   accountRoutes,
@@ -15,5 +18,8 @@ module.exports = {
   bookingRoutes,
   productRoutes,
   paymentsRoutes,
-  promotionRoutes
+  promotionRoutes,
+  roomRoutes,
+  roomTypeRoutes,
+  newsRoutes
 };
