@@ -25,6 +25,7 @@ app.use("/api/branches", routes.branchRoutes);
 app.use("/api/auth", routes.authRoutes);
 app.use("/api/products", routes.productRoutes);
 app.use("/api/categories", routes.categoryRoutes);
+app.use("/api/feedbacks", routes.feedbackRoutes);
 
 const startServer = async () => {
   await connectDB();
