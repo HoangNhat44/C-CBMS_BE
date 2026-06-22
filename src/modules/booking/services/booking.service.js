@@ -98,6 +98,7 @@ class BookingService {
         .populate("roomId", "roomName roomTypeId capacity")
         .populate("slotId", "name startTime endTime")
         .populate("slotIds", "name startTime endTime")
+        .populate("appliedPromotions")
         .sort({ createdAt: -1 });
 
       return {
@@ -117,7 +118,8 @@ class BookingService {
         .populate("branchId", "name address phone")
         .populate("roomId", "roomName roomTypeId capacity")
         .populate("slotId", "name startTime endTime")
-        .populate("slotIds", "name startTime endTime");
+        .populate("slotIds", "name startTime endTime")
+        .populate("appliedPromotions");
 
       if (!booking) {
         return {
@@ -148,7 +150,7 @@ class BookingService {
         bookingDate,
         products = [],
         note = "",
-        discountAmount = 0
+        appliedPromotions = []
       } = bookingData;
 
       let resolvedCustomerId = customerId;
@@ -319,8 +321,12 @@ class BookingService {
         });
       }
 
-      // 10. Compute grand totals
-      const finalTotal = Math.max(0, roomTotal + productTotal - discountAmount);
+      // 10. Compute grand totals using promotion calculation
+      const promotionService = require("../../promotion/promotion.service");
+      const discountResult = await promotionService.calculateDiscount(roomTotal + productTotal, appliedPromotions);
+      
+      const calculatedDiscountAmount = discountResult.success ? discountResult.data.discountAmount : 0;
+      const finalTotal = discountResult.success ? discountResult.data.finalTotal : (roomTotal + productTotal);
 
       // 11. Save booking to DB
       const booking = await Booking.create({
@@ -339,12 +345,22 @@ class BookingService {
         products: parsedProducts,
         roomTotal,
         productTotal,
-        discountAmount,
+        discountAmount: calculatedDiscountAmount,
+        appliedPromotions,
         finalTotal,
         status: "pending",
         paymentStatus: "unpaid",
         note
       });
+
+      // Confirm promotion usage
+      if (appliedPromotions && appliedPromotions.length > 0) {
+        try {
+          await promotionService.confirmUsage(appliedPromotions);
+        } catch (confirmError) {
+          console.error("[Promotion Error] Failed to confirm usage for promotions:", confirmError.message);
+        }
+      }
 
       // Populate response
       const populatedBooking = await Booking.findById(booking._id)
@@ -352,7 +368,8 @@ class BookingService {
         .populate("branchId", "name address phone")
         .populate("roomId", "roomName roomTypeId capacity")
         .populate("slotId", "name startTime endTime")
-        .populate("slotIds", "name startTime endTime");
+        .populate("slotIds", "name startTime endTime")
+        .populate("appliedPromotions");
 
       // Send success email asynchronously
       if (populatedBooking && populatedBooking.customerId && populatedBooking.customerId.email) {
@@ -490,21 +507,8 @@ class BookingService {
   async updateStatus(bookingId, statusData) {
     try {
       const { status, paymentStatus } = statusData;
-      const updateFields = {};
 
-      if (status) updateFields.status = status;
-      if (paymentStatus) updateFields.paymentStatus = paymentStatus;
-
-      const booking = await Booking.findByIdAndUpdate(bookingId, updateFields, {
-        new: true,
-        runValidators: true
-      })
-        .populate("customerId", "fullName email phone")
-        .populate("branchId", "name address phone")
-        .populate("roomId", "roomName roomTypeId capacity")
-        .populate("slotId", "name startTime endTime")
-        .populate("slotIds", "name startTime endTime");
-
+      const booking = await Booking.findById(bookingId);
       if (!booking) {
         return {
           success: false,
@@ -513,10 +517,39 @@ class BookingService {
         };
       }
 
+      const previousStatus = booking.status;
+
+      // Check if transitioning to cancelled or refunded
+      if (status && (status === "cancelled" || status === "refunded")) {
+        if (previousStatus !== "cancelled" && previousStatus !== "refunded") {
+          if (booking.appliedPromotions && booking.appliedPromotions.length > 0) {
+            try {
+              const promotionService = require("../../promotion/promotion.service");
+              await promotionService.revertUsage(booking.appliedPromotions);
+            } catch (revertError) {
+              console.error("[Promotion Revert Error] Failed to revert usage on updateStatus:", revertError.message);
+            }
+          }
+        }
+      }
+
+      if (status) booking.status = status;
+      if (paymentStatus) booking.paymentStatus = paymentStatus;
+
+      await booking.save();
+
+      const populatedBooking = await Booking.findById(booking._id)
+        .populate("customerId", "fullName email phone")
+        .populate("branchId", "name address phone")
+        .populate("roomId", "roomName roomTypeId capacity")
+        .populate("slotId", "name startTime endTime")
+        .populate("slotIds", "name startTime endTime")
+        .populate("appliedPromotions");
+
       return {
         success: true,
         statusCode: 200,
-        data: booking
+        data: populatedBooking
       };
     } catch (error) {
       throw new Error(`Failed to update booking status: ${error.message}`);
@@ -526,7 +559,7 @@ class BookingService {
   // Delete/Cancel booking record from db
   async deleteBooking(bookingId) {
     try {
-      const booking = await Booking.findByIdAndDelete(bookingId);
+      const booking = await Booking.findById(bookingId);
       if (!booking) {
         return {
           success: false,
@@ -534,6 +567,19 @@ class BookingService {
           message: "Booking not found"
         };
       }
+
+      // Revert promotion if applicable
+      if (booking.appliedPromotions && booking.appliedPromotions.length > 0) {
+        try {
+          const promotionService = require("../../promotion/promotion.service");
+          await promotionService.revertUsage(booking.appliedPromotions);
+        } catch (revertError) {
+          console.error("[Promotion Revert Error] Failed to revert usage on deleteBooking:", revertError.message);
+        }
+      }
+
+      await booking.deleteOne();
+
       return {
         success: true,
         statusCode: 200,
@@ -560,6 +606,18 @@ class BookingService {
 
         if (expiredBookings.length > 0) {
           const expiredIds = expiredBookings.map((b) => b._id);
+
+          // Revert promotions for these expired bookings
+          const promotionService = require("../../promotion/promotion.service");
+          for (const booking of expiredBookings) {
+            if (booking.appliedPromotions && booking.appliedPromotions.length > 0) {
+              try {
+                await promotionService.revertUsage(booking.appliedPromotions);
+              } catch (revertError) {
+                console.error(`[Promotion Revert Error] Failed to revert usage on auto-cancel for booking ${booking._id}:`, revertError.message);
+              }
+            }
+          }
 
           // Cancel bookings
           await Booking.updateMany(
