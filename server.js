@@ -52,6 +52,9 @@ app.use("/api/auth", routes.authRoutes);
 app.use("/api/products", routes.productRoutes);
 app.use("/api/payments", routes.paymentsRoutes);
 app.use("/api/promotions", routes.promotionRoutes);
+app.use("/api/rooms", routes.roomRoutes);
+app.use("/api/room-types", routes.roomTypeRoutes);
+app.use("/api/news", routes.newsRoutes);
 
 const startServer = async () => {
   await connectDB();
