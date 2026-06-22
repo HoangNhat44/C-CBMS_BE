@@ -3,6 +3,7 @@ const Booking = require("../../../models/booking.model");
 const User = require("../../../models/users.model");
 const { EmailService } = require("../../../config/email.service");
 const { PayOS } = require("@payos/node");
+const QRCode = require("qrcode");
 
 class PaymentsService {
   getPayosInstance() {
@@ -87,6 +88,8 @@ class PaymentsService {
       status: { $in: ["pending", "processing"] }
     });
 
+    const qrCodeBase64 = responseData.qrCode ? await QRCode.toDataURL(responseData.qrCode) : "";
+
     const payment = await Payment.create({
       bookingId: booking._id,
       customerId: booking.customerId._id,
@@ -98,7 +101,7 @@ class PaymentsService {
       orderCode,
       paymentLinkId: responseData.paymentLinkId,
       checkoutUrl: responseData.checkoutUrl,
-      qrCode: responseData.qrCode,
+      qrCode: qrCodeBase64,
       description,
       expiredAt: new Date(expiredAt * 1000),
       rawResponse: responseData
@@ -109,7 +112,7 @@ class PaymentsService {
       orderCode,
       paymentLinkId: responseData.paymentLinkId,
       checkoutUrl: responseData.checkoutUrl,
-      qrCode: responseData.qrCode,
+      qrCode: qrCodeBase64,
       status: responseData.status,
       amount,
       expiredAt
