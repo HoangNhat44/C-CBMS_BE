@@ -127,20 +127,20 @@ class AuthService {
       .populate("roleId");
 
     if (!user) {
-      return { success: false, statusCode: 401, message: "Invalid email or password." };
+      return { success: false, statusCode: 401, message: "Tài khoản hoặc mật khẩu không chính xác." };
+    }
+
+    const isPasswordValid = await comparePassword(password, user.password);
+    if (!isPasswordValid) {
+      return { success: false, statusCode: 401, message: "Tài khoản hoặc mật khẩu không chính xác." };
     }
 
     if (!user.isActive) {
       return {
         success: false,
         statusCode: 403,
-        message: "Your account is pending approval. Please check your email for updates.",
+        message: "Tài khoản này đã bị khoá.",
       };
-    }
-
-    const isPasswordValid = await comparePassword(password, user.password);
-    if (!isPasswordValid) {
-      return { success: false, statusCode: 401, message: "Invalid email or password." };
     }
 
     const token = signToken(
