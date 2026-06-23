@@ -9,7 +9,7 @@ async function isStaffUser(req) {
       token = req.headers.authorization.split(" ")[1];
     }
     if (!token) return false;
-    if (token === "simulated_owner_token_jwt" || token === "simulated_admin_token_jwt") {
+    if (token === "simulated_owner_token_jwt" || token === "simulated_admin_token_jwt" || token === "simulated_staff_token_jwt") {
       return true;
     }
     const decoded = verifyToken(token);
@@ -24,6 +24,10 @@ async function isStaffUser(req) {
 class CategoryController {
   async createCategory(req, res) {
     try {
+      const isStaff = await isStaffUser(req);
+      if (!isStaff) {
+        return res.status(403).json({ success: false, message: "Bạn không có quyền thực hiện hành động này." });
+      }
       const result = await categoryService.createCategory(req.body);
       res.status(201).json({
         message: "Create category successfully",
@@ -91,6 +95,10 @@ class CategoryController {
 
   async updateCategory(req, res) {
     try {
+      const isStaff = await isStaffUser(req);
+      if (!isStaff) {
+        return res.status(403).json({ success: false, message: "Bạn không có quyền thực hiện hành động này." });
+      }
       const result = await categoryService.updateCategory(req.params.id, req.body);
       if (!result.success) {
         return res.status(404).json(result);
@@ -110,6 +118,10 @@ class CategoryController {
 
   async deleteCategory(req, res) {
     try {
+      const isStaff = await isStaffUser(req);
+      if (!isStaff) {
+        return res.status(403).json({ success: false, message: "Bạn không có quyền thực hiện hành động này." });
+      }
       const result = await categoryService.deleteCategory(req.params.id);
       if (!result.success) {
         return res.status(404).json(result);

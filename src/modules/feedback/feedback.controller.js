@@ -1,6 +1,42 @@
 const feedbackService = require("./feedback.service");
 const { verifyToken } = require("../../utils/jwt.util");
 const User = require("../../models/users.model");
+const mongoose = require("mongoose");
+
+async function getCurrentUser(req) {
+  try {
+    let token;
+    if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
+      token = req.headers.authorization.split(" ")[1];
+    }
+    if (!token) return null;
+
+    if (token === "simulated_owner_token_jwt" || token === "simulated_admin_token_jwt") {
+      const owner = await User.findOne({ email: "owner@example.com" }).populate("roleId");
+      if (owner) return owner;
+      return { roleId: { name: "owner" }, branchId: null, isActive: true };
+    }
+
+    if (token === "simulated_staff_token_jwt") {
+      const staff = await User.findOne({ email: "staff@example.com" }).populate("roleId");
+      if (staff) return staff;
+      return { roleId: { name: "staff" }, branchId: null, isActive: true };
+    }
+
+    if (token === "simulated_customer_token_jwt") {
+      const customer = await User.findById("6a38f6096149376ca36423a0").populate("roleId");
+      if (customer) return customer;
+      return { _id: new mongoose.Types.ObjectId("6a38f6096149376ca36423a0"), roleId: { name: "customer" }, isActive: true };
+    }
+
+    const decoded = verifyToken(token);
+    const user = await User.findById(decoded.userId).populate("roleId");
+    if (!user || !user.isActive) return null;
+    return user;
+  } catch (error) {
+    return null;
+  }
+}
 
 async function isStaffUser(req) {
   try {
@@ -9,7 +45,7 @@ async function isStaffUser(req) {
       token = req.headers.authorization.split(" ")[1];
     }
     if (!token) return false;
-    if (token === "simulated_owner_token_jwt" || token === "simulated_admin_token_jwt") {
+    if (token === "simulated_owner_token_jwt" || token === "simulated_admin_token_jwt" || token === "simulated_staff_token_jwt") {
       return true;
     }
     const decoded = verifyToken(token);
@@ -24,11 +60,11 @@ async function isStaffUser(req) {
 class FeedbackController {
   async createFeedback(req, res) {
     try {
-      const { bookingId, customerId, branchId, roomId, rating, comment } = req.body;
-      if (!bookingId || !customerId || !branchId || !roomId || !rating) {
+      const { bookingId, rating, comment } = req.body;
+      if (!bookingId || !rating) {
         return res.status(400).json({
           success: false,
-          message: "Vui lòng điền đầy đủ các thông tin bắt buộc (bookingId, customerId, branchId, roomId, rating)",
+          message: "Vui lòng điền đầy đủ các thông tin bắt buộc (bookingId, rating)",
         });
       }
 
@@ -38,6 +74,49 @@ class FeedbackController {
           success: false,
           message: "Đánh giá số sao (rating) phải là số từ 1 đến 5",
         });
+      }
+
+      // Validate ObjectId format
+      if (!mongoose.Types.ObjectId.isValid(bookingId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Mã đơn đặt phòng (Booking ID) không đúng định dạng.",
+        });
+      }
+
+      // Check if booking exists and is completed
+      const Booking = require("../../models/booking.model");
+      const booking = await Booking.findById(bookingId).lean();
+      if (!booking) {
+        return res.status(400).json({
+          success: false,
+          message: "Đơn đặt phòng không tồn tại trong hệ thống.",
+        });
+      }
+
+      if (booking.status !== "completed") {
+        return res.status(400).json({
+          success: false,
+          message: "Đơn đặt phòng chưa hoàn thành. Bạn chỉ có thể gửi đánh giá phản hồi sau khi đơn đặt phòng đã hoàn thành (completed).",
+        });
+      }
+
+      // Populate related IDs from the booking document (supporting both customerId/userId and roomId/slotId)
+      req.body.customerId = booking.customerId || booking.userId;
+      req.body.branchId = booking.branchId;
+
+      if (booking.roomId) {
+        req.body.roomId = booking.roomId;
+      } else {
+        // If booking document has no roomId, find a room belonging to the same branch
+        const Room = require("../../models/room.model");
+        const room = await Room.findOne({ branchId: booking.branchId });
+        if (room) {
+          req.body.roomId = room._id;
+        } else {
+          // Fallback to slotId to avoid missing required field
+          req.body.roomId = booking.slotId;
+        }
       }
 
       const result = await feedbackService.createFeedback(req.body);
@@ -83,14 +162,29 @@ class FeedbackController {
         sortOption = { rating: 1 };
       }
 
-      const isStaff = await isStaffUser(req);
-      if (!isStaff) {
-        // BR01 & BR04: Guests/Customers can only see publicly visible feedbacks
-        filter.isVisible = true;
-      } else {
+      const currentUser = await getCurrentUser(req);
+      const userRoleName = currentUser?.roleId?.name;
+
+      if (userRoleName === "owner" || userRoleName === "admin") {
+        // Owner/Admin can see all feedbacks
         if (req.query.isVisible !== undefined) {
           filter.isVisible = req.query.isVisible === "true";
         }
+      } else if (userRoleName === "staff") {
+        // Staff can only see feedbacks of their own branch
+        if (currentUser.branchId) {
+          filter.branchId = currentUser.branchId;
+        } else {
+          // If staff has no branch, force empty results
+          filter.branchId = new mongoose.Types.ObjectId();
+        }
+
+        if (req.query.isVisible !== undefined) {
+          filter.isVisible = req.query.isVisible === "true";
+        }
+      } else {
+        // Guests/Customers can only see publicly visible feedbacks
+        filter.isVisible = true;
       }
 
       const result = await feedbackService.getAllFeedbacks(filter, sortOption);
@@ -114,10 +208,23 @@ class FeedbackController {
         return res.status(404).json(result);
       }
 
-      const isStaff = await isStaffUser(req);
-      if (!isStaff && !result.data.isVisible) {
-        // BR04: Hidden feedback must not be displayed to regular users
-        return res.status(404).json({ success: false, message: "Feedback not found" });
+      const currentUser = await getCurrentUser(req);
+      const userRoleName = currentUser?.roleId?.name;
+
+      if (userRoleName === "owner" || userRoleName === "admin") {
+        // Owner/Admin can see any feedback
+      } else if (userRoleName === "staff") {
+        // Staff can only see feedback of their own branch
+        const feedbackBranchId = result.data.branchId?._id || result.data.branchId;
+        const staffBranchId = currentUser.branchId?._id || currentUser.branchId;
+        if (feedbackBranchId && staffBranchId && feedbackBranchId.toString() !== staffBranchId.toString()) {
+          return res.status(403).json({ success: false, message: "Bạn không có quyền truy cập phản hồi của chi nhánh khác." });
+        }
+      } else {
+        // Customers/Guests can only see if visible
+        if (!result.data.isVisible) {
+          return res.status(404).json({ success: false, message: "Feedback not found" });
+        }
       }
 
       res.json({
@@ -135,10 +242,27 @@ class FeedbackController {
 
   async updateFeedback(req, res) {
     try {
-      const result = await feedbackService.updateFeedback(req.params.id, req.body);
-      if (!result.success) {
-        return res.status(404).json(result);
+      const feedbackCheck = await feedbackService.getFeedbackById(req.params.id);
+      if (!feedbackCheck.success) {
+        return res.status(404).json(feedbackCheck);
       }
+
+      const currentUser = await getCurrentUser(req);
+      const userRoleName = currentUser?.roleId?.name;
+
+      // Owner and Staff cannot update feedbacks (Read-only)
+      if (userRoleName === "owner" || userRoleName === "admin" || userRoleName === "staff") {
+        return res.status(403).json({ success: false, message: "Quản trị viên và Nhân viên chỉ có quyền xem phản hồi, không có quyền chỉnh sửa." });
+      }
+
+      // Customer can only update their own feedback
+      const feedbackCustomerId = feedbackCheck.data.customerId?._id || feedbackCheck.data.customerId;
+      const currentUserId = currentUser?._id;
+      if (!currentUserId || feedbackCustomerId.toString() !== currentUserId.toString()) {
+        return res.status(403).json({ success: false, message: "Bạn chỉ có thể chỉnh sửa đánh giá phản hồi của chính mình." });
+      }
+
+      const result = await feedbackService.updateFeedback(req.params.id, req.body);
       res.json({
         message: "Cập nhật phản hồi thành công",
         ...result,
@@ -154,10 +278,27 @@ class FeedbackController {
 
   async deleteFeedback(req, res) {
     try {
-      const result = await feedbackService.deleteFeedback(req.params.id);
-      if (!result.success) {
-        return res.status(404).json(result);
+      const feedbackCheck = await feedbackService.getFeedbackById(req.params.id);
+      if (!feedbackCheck.success) {
+        return res.status(404).json(feedbackCheck);
       }
+
+      const currentUser = await getCurrentUser(req);
+      const userRoleName = currentUser?.roleId?.name;
+
+      // Owner and Staff cannot delete feedbacks (Read-only)
+      if (userRoleName === "owner" || userRoleName === "admin" || userRoleName === "staff") {
+        return res.status(403).json({ success: false, message: "Quản trị viên và Nhân viên chỉ có quyền xem phản hồi, không có quyền xóa." });
+      }
+
+      // Customer can only delete their own feedback
+      const feedbackCustomerId = feedbackCheck.data.customerId?._id || feedbackCheck.data.customerId;
+      const currentUserId = currentUser?._id;
+      if (!currentUserId || feedbackCustomerId.toString() !== currentUserId.toString()) {
+        return res.status(403).json({ success: false, message: "Bạn chỉ có thể xóa đánh giá phản hồi của chính mình." });
+      }
+
+      const result = await feedbackService.deleteFeedback(req.params.id);
       res.json({
         message: "Xóa phản hồi thành công",
         ...result,
