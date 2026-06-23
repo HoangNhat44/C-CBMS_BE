@@ -55,6 +55,8 @@ app.use("/api/promotions", routes.promotionRoutes);
 app.use("/api/rooms", routes.roomRoutes);
 app.use("/api/room-types", routes.roomTypeRoutes);
 app.use("/api/news", routes.newsRoutes);
+app.use("/api/categories", routes.categoryRoutes);
+app.use("/api/feedbacks", routes.feedbackRoutes);
 
 const startServer = async () => {
   await connectDB();

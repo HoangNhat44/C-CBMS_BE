@@ -9,6 +9,8 @@ const promotionRoutes = require("../modules/promotion/promotion.route");
 const roomRoutes = require("../modules/room/room.route");
 const roomTypeRoutes = require("../modules/roomType/roomType.route");
 const newsRoutes = require("../modules/news/news.route");
+const categoryRoutes = require("../modules/category/category.route");
+const feedbackRoutes = require("../modules/feedback/feedback.route");
 
 module.exports = {
   accountRoutes,
@@ -22,4 +24,6 @@ module.exports = {
   roomRoutes,
   roomTypeRoutes,
   newsRoutes
+  categoryRoutes,
+  feedbackRoutes,
 };
