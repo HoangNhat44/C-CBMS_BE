@@ -23,7 +23,7 @@ module.exports = {
   promotionRoutes,
   roomRoutes,
   roomTypeRoutes,
-  newsRoutes
+  newsRoutes,
   categoryRoutes,
   feedbackRoutes,
 };
