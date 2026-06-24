@@ -11,7 +11,7 @@ const refundSchema = new mongoose.Schema(
     paymentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Payment",
-      required: true,
+      required: false,
     },
 
     customerId: {
@@ -36,6 +36,16 @@ const refundSchema = new mongoose.Schema(
       type: String,
       enum: ["pending", "approved", "rejected", "refunded"],
       default: "pending",
+    },
+
+    adminNotes: {
+      type: String,
+      default: "",
+    },
+
+    proofImage: {
+      type: String,
+      default: "",
     },
 
     requestedAt: {

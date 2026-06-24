@@ -11,6 +11,7 @@ const roomTypeRoutes = require("../modules/roomType/roomType.route");
 const newsRoutes = require("../modules/news/news.route");
 const categoryRoutes = require("../modules/category/category.route");
 const feedbackRoutes = require("../modules/feedback/feedback.route");
+const refundRoutes = require("../modules/refund/routes/refund.route");
 
 module.exports = {
   accountRoutes,
@@ -26,4 +27,5 @@ module.exports = {
   newsRoutes,
   categoryRoutes,
   feedbackRoutes,
+  refundRoutes,
 };
