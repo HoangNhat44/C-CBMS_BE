@@ -72,7 +72,11 @@ class BranchService {
 
   async deleteBranch(branchId) {
     try {
-      const branch = await Branch.findByIdAndDelete(branchId);
+      const branch = await Branch.findByIdAndUpdate(
+        branchId,
+        { isActive: false },
+        { new: true }
+      );
 
       if (!branch) {
         return {

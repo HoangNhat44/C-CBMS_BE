@@ -58,6 +58,9 @@ app.use("/api/news", routes.newsRoutes);
 app.use("/api/categories", routes.categoryRoutes);
 app.use("/api/feedbacks", routes.feedbackRoutes);
 app.use("/api/refunds", routes.refundRoutes);
+app.use("/api/slots", routes.slotRoutes);
+app.use("/api/profile", routes.profileRoutes);
+
 
 const startServer = async () => {
   await connectDB();
