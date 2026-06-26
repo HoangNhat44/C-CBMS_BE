@@ -47,4 +47,27 @@ function checkRoles(...roles) {
   };
 }
 
-module.exports = { authMiddleware, checkRoles };
+async function optionalAuthMiddleware(req, res, next) {
+  try {
+    let token;
+    if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
+      token = req.headers.authorization.split(" ")[1];
+    }
+    if (!token) {
+      return next();
+    }
+    
+    const decoded = verifyToken(token);
+    const user = await User.findById(decoded.userId).populate("roleId");
+    
+    if (user && user.isActive) {
+      req.user = user;
+    }
+    next();
+  } catch (error) {
+    next();
+  }
+}
+
+module.exports = { authMiddleware, checkRoles, optionalAuthMiddleware };
+

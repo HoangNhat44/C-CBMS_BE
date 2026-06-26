@@ -7,6 +7,7 @@ const EMAIL_TYPES = {
   PASSWORD_RESET_SUCCESS: "password_reset_success",
   PAYMENT_SUCCESS: "payment_success",
   BOOKING_SUCCESS: "booking_success",
+  REFUND_SUCCESS: "refund_success",
 };
 
 const BRAND = {
@@ -162,12 +163,12 @@ const templates = {
     subject: `[${BRAND.name}] Đặt phòng thành công - Mã đơn #${bookingId}`,
     html: buildBaseHtml({
       title: "Đặt phòng thành công",
-      preheader: `Đơn đặt phòng #${bookingId} của bạn đã được ghi nhận thành công.`,
+      preheader: `Đơn đặt phòng #${bookingId} của bạn đã được thanh toán và xác nhận thành công.`,
       bodyHtml: `
         <h1 style="margin:0 0 12px;font-size:24px;color:#111827;">Đặt phòng thành công</h1>
         <p style="line-height:1.6;margin:0 0 12px;">Xin chào <strong>${fullName}</strong>,</p>
         <p style="line-height:1.6;margin:0 0 12px;">
-          Chúng tôi xin thông báo đơn đặt phòng của bạn đã được ghi nhận thành công trên hệ thống ${BRAND.name}:
+          Chúng tôi xin thông báo đơn đặt phòng của bạn đã được thanh toán và xác nhận thành công trên hệ thống ${BRAND.name}:
         </p>
         <div style="background:#f3f4f6;padding:16px;border-radius:8px;margin-bottom:16px;">
           <p style="margin:4px 0;"><strong>Mã đơn hàng:</strong> #${bookingId}</p>
@@ -177,11 +178,37 @@ const templates = {
           <p style="margin:4px 0;"><strong>Khung giờ:</strong> ${timeRange} (${totalHours} giờ)</p>
           <p style="margin:4px 0;"><strong>Tổng tiền:</strong> ${new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(finalTotal)}</p>
         </div>
-        <p style="line-height:1.6;margin:0 0 12px;">Đơn đặt phòng của bạn hiện đang ở trạng thái <strong>Chờ xác nhận</strong> (Pending). Vui lòng hoàn tất thanh toán để giữ chỗ.</p>
+        <p style="line-height:1.6;margin:0 0 12px;">Đơn đặt phòng của bạn đã được thanh toán thành công và chuyển sang trạng thái <strong>Đã xác nhận</strong> (Confirmed).</p>
         <p style="line-height:1.6;margin:0 0 12px;">Cảm ơn bạn đã lựa chọn dịch vụ của chúng tôi!</p>
       `,
     }),
-    text: `Chào ${fullName}, đơn đặt phòng #${bookingId} tại ${branchName}, phòng ${roomName} ngày ${bookingDate} lúc ${timeRange} đã được tạo thành công với tổng tiền ${finalTotal} VND.`,
+    text: `Chào ${fullName}, đơn đặt phòng #${bookingId} tại ${branchName}, phòng ${roomName} ngày ${bookingDate} lúc ${timeRange} đã được thanh toán và xác nhận thành công với tổng tiền ${finalTotal} VND.`,
+  }),
+
+  [EMAIL_TYPES.REFUND_SUCCESS]: ({ fullName, bookingId, branchName, roomName, amount, adminNotes, date }) => ({
+    subject: `[${BRAND.name}] Hoàn tiền thành công - Mã đơn #${bookingId}`,
+    html: buildBaseHtml({
+      title: "Hoàn tiền thành công",
+      preheader: `Đơn đặt phòng #${bookingId} của bạn đã được hoàn tiền thành công.`,
+      bodyHtml: `
+        <h1 style="margin:0 0 12px;font-size:24px;color:#111827;">Hoàn tiền thành công</h1>
+        <p style="line-height:1.6;margin:0 0 12px;">Xin chào <strong>${fullName}</strong>,</p>
+        <p style="line-height:1.6;margin:0 0 12px;">
+          Chúng tôi xin thông báo yêu cầu hoàn tiền cho đơn đặt phòng #${bookingId} đã được duyệt và xử lý thành công trên hệ thống ${BRAND.name}:
+        </p>
+        <div style="background:#f3f4f6;padding:16px;border-radius:8px;margin-bottom:16px;">
+          <p style="margin:4px 0;"><strong>Mã đơn hàng:</strong> #${bookingId}</p>
+          <p style="margin:4px 0;"><strong>Chi nhánh:</strong> ${branchName}</p>
+          <p style="margin:4px 0;"><strong>Phòng:</strong> ${roomName}</p>
+          <p style="margin:4px 0;"><strong>Số tiền hoàn:</strong> ${new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount)}</p>
+          <p style="margin:4px 0;"><strong>Thời gian xử lý:</strong> ${date}</p>
+          ${adminNotes ? `<p style="margin:4px 0;"><strong>Ghi chú:</strong> ${adminNotes}</p>` : ""}
+        </div>
+        <p style="line-height:1.6;margin:0 0 12px;">Số tiền hoàn trả sẽ được chuyển khoản vào tài khoản bạn đã cung cấp. Vui lòng kiểm tra tài khoản của mình.</p>
+        <p style="line-height:1.6;margin:0 0 12px;">Cảm ơn bạn đã lựa chọn dịch vụ của chúng tôi!</p>
+      `,
+    }),
+    text: `Chào ${fullName}, đơn đặt phòng #${bookingId} tại ${branchName}, phòng ${roomName} đã được hoàn tiền thành công với số tiền ${amount} VND vào lúc ${date}. Ghi chú: ${adminNotes}`,
   }),
 };
 
@@ -275,6 +302,26 @@ class EmailService {
       timeRange,
       totalHours,
       finalTotal,
+    });
+  }
+
+  async sendRefundSuccessEmail({ to, fullName, refund, booking }) {
+    const bookingId = booking._id.toString();
+    const branchName = booking.branchId?.name || "Chi nhánh C-CBMS";
+    const roomName = booking.roomId?.roomName || "Phòng C-CBMS";
+    const amount = refund.amount;
+    const adminNotes = refund.adminNotes || "";
+    const date = (refund.processedAt || new Date()).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" });
+
+    return this.send(EMAIL_TYPES.REFUND_SUCCESS, {
+      to,
+      fullName,
+      bookingId,
+      branchName,
+      roomName,
+      amount,
+      adminNotes,
+      date,
     });
   }
 }

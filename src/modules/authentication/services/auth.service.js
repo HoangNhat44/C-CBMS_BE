@@ -124,7 +124,8 @@ class AuthService {
 
     const user = await User.findOne({ email: normalizedEmail })
       .select("+password")
-      .populate("roleId");
+      .populate("roleId")
+      .populate("branchId");
 
     if (!user) {
       return { success: false, statusCode: 401, message: "Tài khoản hoặc mật khẩu không chính xác." };
@@ -148,6 +149,7 @@ class AuthService {
         userId: user._id.toString(),
         email: user.email,
         role: user.roleId?.name,
+        branchId: user.branchId ? (user.branchId._id || user.branchId).toString() : undefined,
       },
       remember
     );
@@ -309,7 +311,7 @@ class AuthService {
 
     try {
       const decoded = verifyToken(token);
-      const user = await User.findById(decoded.userId).populate("roleId");
+      const user = await User.findById(decoded.userId).populate("roleId").populate("branchId");
 
       if (!user || !user.isActive) {
         return { success: false, statusCode: 401, message: "Invalid or inactive account." };

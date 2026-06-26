@@ -371,18 +371,6 @@ class BookingService {
         .populate("slotIds", "name startTime endTime")
         .populate("appliedPromotions");
 
-      // Send success email asynchronously
-      if (populatedBooking && populatedBooking.customerId && populatedBooking.customerId.email) {
-        const { EmailService } = require("../../../config/email.service");
-        EmailService.sendBookingSuccessEmail({
-          to: populatedBooking.customerId.email,
-          fullName: populatedBooking.customerId.fullName || "Quý khách",
-          booking: populatedBooking
-        }).catch((err) => {
-          console.error("[Email Error] Failed to send booking success email:", err.message);
-        });
-      }
-
       return {
         success: true,
         statusCode: 201,

@@ -5,9 +5,43 @@ class PromotionService {
     try {
       let query = {};
       if (branchId) {
-        query.$or = [
-          { branchIds: { $size: 0 } },
-          { branchIds: branchId }
+        const now = new Date();
+        query.isActive = true;
+        query.$and = [
+          {
+            $or: [
+              { branchIds: { $size: 0 } },
+              { branchIds: branchId }
+            ]
+          },
+          {
+            $or: [
+              { code: { $exists: false } },
+              { code: "" },
+              { code: null }
+            ]
+          },
+          {
+            $or: [
+              { startDate: { $exists: false } },
+              { startDate: null },
+              { startDate: { $lte: now } }
+            ]
+          },
+          {
+            $or: [
+              { endDate: { $exists: false } },
+              { endDate: null },
+              { endDate: { $gte: now } }
+            ]
+          },
+          {
+            $or: [
+              { maxUsage: null },
+              { maxUsage: { $exists: false } },
+              { $expr: { $lt: ["$usedCount", "$maxUsage"] } }
+            ]
+          }
         ];
       }
       const promotions = await Promotion.find(query).populate("branchIds", "name").sort({ createdAt: -1 });

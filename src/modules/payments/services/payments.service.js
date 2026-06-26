@@ -235,14 +235,22 @@ class PaymentsService {
 
       await booking.save();
 
+      // Send booking success email now that payment is confirmed!
       if (booking.customerId?.email) {
-        EmailService.sendPaymentSuccessEmail({
-          to: booking.customerId.email,
-          fullName: booking.customerId.fullName,
-          booking,
-          payment
+        // Populate full details for the rich email template
+        const populatedBooking = await Booking.findById(booking._id)
+          .populate("customerId", "fullName email phone")
+          .populate("branchId", "name address phone")
+          .populate("roomId", "roomName roomTypeId capacity")
+          .populate("slotId", "name startTime endTime")
+          .populate("slotIds", "name startTime endTime");
+
+        EmailService.sendBookingSuccessEmail({
+          to: populatedBooking.customerId.email,
+          fullName: populatedBooking.customerId.fullName || "Quý khách",
+          booking: populatedBooking
         }).catch((err) => {
-          console.error("Error sending success mail:", err);
+          console.error("Error sending booking success email after payment:", err);
         });
       }
 

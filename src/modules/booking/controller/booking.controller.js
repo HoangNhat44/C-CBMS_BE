@@ -107,31 +107,33 @@ class BookingController {
       }
 
       const booking = result.data;
-      const roleName = req.user.roleId?.name;
+      const roleName = req.user ? req.user.roleId?.name : null;
 
       // Access control check for detailed view
-      if (roleName === "customer") {
-        const bookingCustomerId = booking.customerId ? (booking.customerId._id ? booking.customerId._id.toString() : booking.customerId.toString()) : null;
-        if (bookingCustomerId !== req.user._id.toString()) {
+      if (req.user) {
+        if (roleName === "customer") {
+          const bookingCustomerId = booking.customerId ? (booking.customerId._id ? booking.customerId._id.toString() : booking.customerId.toString()) : null;
+          if (bookingCustomerId !== req.user._id.toString()) {
+            return res.status(403).json({
+              success: false,
+              message: "Forbidden. You are not allowed to view this booking."
+            });
+          }
+        } else if (roleName === "staff") {
+          const bookingBranchId = booking.branchId ? (booking.branchId._id ? booking.branchId._id.toString() : booking.branchId.toString()) : null;
+          const staffBranchId = req.user.branchId ? req.user.branchId.toString() : null;
+          if (bookingBranchId !== staffBranchId) {
+            return res.status(403).json({
+              success: false,
+              message: "Forbidden. You are not allowed to view bookings from other branches."
+            });
+          }
+        } else if (roleName !== "owner") {
           return res.status(403).json({
             success: false,
-            message: "Forbidden. You are not allowed to view this booking."
+            message: "Forbidden. Insufficient permissions."
           });
         }
-      } else if (roleName === "staff") {
-        const bookingBranchId = booking.branchId ? (booking.branchId._id ? booking.branchId._id.toString() : booking.branchId.toString()) : null;
-        const staffBranchId = req.user.branchId ? req.user.branchId.toString() : null;
-        if (bookingBranchId !== staffBranchId) {
-          return res.status(403).json({
-            success: false,
-            message: "Forbidden. You are not allowed to view bookings from other branches."
-          });
-        }
-      } else if (roleName !== "owner") {
-        return res.status(403).json({
-          success: false,
-          message: "Forbidden. Insufficient permissions."
-        });
       }
 
       return res.status(200).json({
@@ -195,6 +197,108 @@ class BookingController {
         return res.status(400).json({
           success: false,
           message: "Either status or paymentStatus is required to update."
+        });
+      }
+
+      // Fetch the booking details first
+      const getResult = await bookingService.getBookingById(id);
+      if (!getResult.success) {
+        return res.status(404).json(getResult);
+      }
+
+      const booking = getResult.data;
+      const roleName = req.user.roleId?.name;
+      const userId = req.user._id.toString();
+      const userBranchId = req.user.branchId ? req.user.branchId.toString() : null;
+
+      // Access Control and Business Logic Validation based on Role
+      if (roleName === "customer") {
+        // Customer must own the booking
+        const bookingCustomerId = booking.customerId ? (booking.customerId._id ? booking.customerId._id.toString() : booking.customerId.toString()) : null;
+        if (bookingCustomerId !== userId) {
+          return res.status(403).json({
+            success: false,
+            message: "Forbidden. You are not allowed to update other users' bookings."
+          });
+        }
+
+        // Customer cannot manually change payment status
+        if (paymentStatus) {
+          return res.status(403).json({
+            success: false,
+            message: "Forbidden. Customers are not allowed to update payment status manually."
+          });
+        }
+
+        // Customer status transition validation
+        if (status) {
+          if (status === "cancelled") {
+            if (booking.status !== "pending") {
+              return res.status(400).json({
+                success: false,
+                message: "Customers can only cancel bookings that are in pending status."
+              });
+            }
+          } else if (status === "request_refund") {
+            if (booking.status !== "confirmed") {
+              return res.status(400).json({
+                success: false,
+                message: "Customers can only request refund for confirmed bookings."
+              });
+            }
+          } else {
+            return res.status(403).json({
+              success: false,
+              message: `Forbidden. Customers are not allowed to set status to '${status}'.`
+            });
+          }
+        }
+      } else if (roleName === "staff") {
+        // Staff must belong to the same branch
+        const bookingBranchId = booking.branchId ? (booking.branchId._id ? booking.branchId._id.toString() : booking.branchId.toString()) : null;
+        if (bookingBranchId !== userBranchId) {
+          return res.status(403).json({
+            success: false,
+            message: "Forbidden. Staff can only update bookings for their own branch."
+          });
+        }
+
+        // Staff status transition validation
+        if (status) {
+          if (status === "completed") {
+            if (booking.status !== "confirmed") {
+              return res.status(400).json({
+                success: false,
+                message: "Staff can only complete bookings that are in confirmed status."
+              });
+            }
+          } else if (status === "cancelled") {
+            if (booking.status !== "pending" && booking.status !== "confirmed") {
+              return res.status(400).json({
+                success: false,
+                message: "Staff can only cancel bookings that are pending or confirmed."
+              });
+            }
+          } else if (status === "confirmed") {
+            if (booking.status !== "pending") {
+              return res.status(400).json({
+                success: false,
+                message: "Staff can only confirm bookings that are pending."
+              });
+            }
+          } else {
+            return res.status(403).json({
+              success: false,
+              message: `Forbidden. Staff are not allowed to set status to '${status}'.`
+            });
+          }
+        }
+      } else if (roleName === "owner") {
+        // Owner has full access, no branch or status restrictions
+      } else {
+        return res.status(403).json({
+          success: false,
+          message: "Forbidden. Insufficient permissions."
         });
       }
 
