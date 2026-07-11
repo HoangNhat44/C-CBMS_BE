@@ -49,7 +49,7 @@ class FeedbackService {
   async updateFeedback(id, data) {
     try {
       const feedback = await Feedback.findByIdAndUpdate(id, data, {
-        new: true,
+        returnDocument: 'after',
         runValidators: true,
       })
         .populate("customerId", "fullName email image")

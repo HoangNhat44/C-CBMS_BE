@@ -1,24 +1,18 @@
 const Promotion = require("../../models/promotion.model");
 
 class PromotionService {
-  async getAllPromotions(branchId) {
+  async getAllPromotions(branchId, isManager = false) {
     try {
       let query = {};
       if (branchId) {
         const now = new Date();
+        query.isActive = true;
         query.isActive = true;
         query.$and = [
           {
             $or: [
               { branchIds: { $size: 0 } },
               { branchIds: branchId }
-            ]
-          },
-          {
-            $or: [
-              { code: { $exists: false } },
-              { code: "" },
-              { code: null }
             ]
           },
           {
@@ -34,16 +28,29 @@ class PromotionService {
               { endDate: null },
               { endDate: { $gte: now } }
             ]
+          }
+        ];
+      } else if (!isManager) {
+        const now = new Date();
+        query.isActive = true;
+        query.$and = [
+          {
+            $or: [
+              { startDate: { $exists: false } },
+              { startDate: null },
+              { startDate: { $lte: now } }
+            ]
           },
           {
             $or: [
-              { maxUsage: null },
-              { maxUsage: { $exists: false } },
-              { $expr: { $lt: ["$usedCount", "$maxUsage"] } }
+              { endDate: { $exists: false } },
+              { endDate: null },
+              { endDate: { $gte: now } }
             ]
           }
         ];
       }
+
       const promotions = await Promotion.find(query).populate("branchIds", "name").sort({ createdAt: -1 });
       return {
         success: true,
@@ -113,7 +120,7 @@ class PromotionService {
         }
       }
 
-      const promotion = await Promotion.findByIdAndUpdate(id, data, { new: true, runValidators: true }).populate("branchIds", "name");
+      const promotion = await Promotion.findByIdAndUpdate(id, data, { returnDocument: 'after', runValidators: true }).populate("branchIds", "name");
       
       if (!promotion) {
         return {

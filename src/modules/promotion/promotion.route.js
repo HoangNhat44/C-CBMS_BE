@@ -1,14 +1,15 @@
 const express = require("express");
 const promotionController = require("./promotion.controller");
+const { authMiddleware, optionalAuthMiddleware, requirePermission } = require("../../middlewares/auth.middleware");
 
 const router = express.Router();
 
-router.get("/", promotionController.getAllPromotions);
-router.post("/apply", promotionController.applyPromotion);
-router.post("/calculate", promotionController.calculateDiscount);
-router.post("/confirm-usage", promotionController.confirmUsage);
-router.post("/revert-usage", promotionController.revertUsage);
-router.post("/", promotionController.createPromotion);
-router.put("/:id", promotionController.updatePromotion);
+router.get("/", optionalAuthMiddleware, promotionController.getAllPromotions);
+router.post("/apply", authMiddleware, promotionController.applyPromotion);
+router.post("/calculate", authMiddleware, promotionController.calculateDiscount);
+router.post("/confirm-usage", authMiddleware, promotionController.confirmUsage);
+router.post("/revert-usage", authMiddleware, promotionController.revertUsage);
+router.post("/", authMiddleware, requirePermission("CREATE_PROMOTION"), promotionController.createPromotion);
+router.put("/:id", authMiddleware, requirePermission("CREATE_PROMOTION"), promotionController.updatePromotion);
 
 module.exports = router;

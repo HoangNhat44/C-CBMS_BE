@@ -42,7 +42,7 @@ class NewsService {
   async updateNews(id, data) {
     try {
       const news = await News.findByIdAndUpdate(id, data, {
-        new: true,
+        returnDocument: 'after',
         runValidators: true,
       });
 

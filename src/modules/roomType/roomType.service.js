@@ -24,7 +24,7 @@ class RoomTypeService {
 
   async updateRoomType(id, data) {
     try {
-      const roomType = await RoomType.findByIdAndUpdate(id, data, { new: true });
+      const roomType = await RoomType.findByIdAndUpdate(id, data, { returnDocument: 'after' });
       if (!roomType) {
         throw new Error("Room type not found");
       }

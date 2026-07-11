@@ -34,7 +34,7 @@ class CategoryService {
   async updateCategory(id, data) {
     try {
       const category = await Category.findByIdAndUpdate(id, data, {
-        new: true,
+        returnDocument: 'after',
         runValidators: true,
       });
       if (!category) {

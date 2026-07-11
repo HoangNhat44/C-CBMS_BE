@@ -76,21 +76,27 @@ class SlotController {
     }
   }
 
-  async deleteSlot(req, res) {
+  async updateSlotStatus(req, res) {
     try {
       const { id } = req.params;
-      const result = await slotService.deleteSlot(id);
+      const { isActive } = req.body;
+      
+      if (typeof isActive !== "boolean") {
+        return res.status(400).json({ success: false, message: "isActive must be a boolean" });
+      }
+
+      const result = await slotService.updateSlotStatus(id, isActive);
       if (!result.success) {
         return res.status(404).json(result);
       }
       res.json({
-        message: "Deactivate slot successfully",
+        message: "Update slot status successfully",
         ...result,
       });
     } catch (error) {
-      res.status(500).json({
+      res.status(400).json({
         success: false,
-        message: "Failed to deactivate slot",
+        message: "Failed to update slot status",
         error: error.message,
       });
     }

@@ -78,7 +78,7 @@ class UserService {
       const willActivate = updateData.isActive === true;
 
       const user = await User.findByIdAndUpdate(userId, updateData, {
-        new: true,
+        returnDocument: 'after',
         runValidators: true,
       });
 

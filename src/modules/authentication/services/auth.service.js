@@ -16,7 +16,12 @@ function formatUserResponse(user) {
     email: user.email,
     phone: user.phone,
     roleId: user.roleId,
-    role: user.roleId?.name ? { id: user.roleId._id, name: user.roleId.name, description: user.roleId.description } : undefined,
+    role: user.roleId?.name ? { 
+      id: user.roleId._id, 
+      name: user.roleId.name, 
+      description: user.roleId.description,
+      permissions: user.roleId.permissions?.map(p => p.code) || [] 
+    } : undefined,
     branchId: user.branchId,
     isActive: user.isActive,
     createdAt: user.createdAt,
@@ -124,7 +129,10 @@ class AuthService {
 
     const user = await User.findOne({ email: normalizedEmail })
       .select("+password")
-      .populate("roleId")
+      .populate({
+        path: "roleId",
+        populate: { path: "permissions" }
+      })
       .populate("branchId");
 
     if (!user) {
@@ -311,7 +319,12 @@ class AuthService {
 
     try {
       const decoded = verifyToken(token);
-      const user = await User.findById(decoded.userId).populate("roleId").populate("branchId");
+      const user = await User.findById(decoded.userId)
+        .populate({
+          path: "roleId",
+          populate: { path: "permissions" }
+        })
+        .populate("branchId");
 
       if (!user || !user.isActive) {
         return { success: false, statusCode: 401, message: "Invalid or inactive account." };

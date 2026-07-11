@@ -32,7 +32,7 @@ class ProfileService {
 
       // Update the user
       const user = await User.findByIdAndUpdate(userId, allowedUpdates, {
-        new: true,
+        returnDocument: 'after',
         runValidators: true,
       })
         .populate("roleId", "name")

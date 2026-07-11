@@ -50,7 +50,7 @@ class BranchService {
   async updateBranch(branchId, updateData) {
     try {
       const branch = await Branch.findByIdAndUpdate(branchId, updateData, {
-        new: true,
+        returnDocument: 'after',
         runValidators: true,
       });
 
@@ -75,7 +75,7 @@ class BranchService {
       const branch = await Branch.findByIdAndUpdate(
         branchId,
         { isActive: false },
-        { new: true }
+        { returnDocument: 'after' }
       );
 
       if (!branch) {

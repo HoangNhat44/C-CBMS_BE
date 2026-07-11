@@ -65,7 +65,7 @@ class SlotService {
       if (updateData.hasOwnProperty("isActive")) allowedUpdates.isActive = updateData.isActive;
 
       const slot = await Slot.findByIdAndUpdate(slotId, allowedUpdates, {
-        new: true,
+        returnDocument: 'after',
         runValidators: true,
       });
 
@@ -85,13 +85,12 @@ class SlotService {
     }
   }
 
-  async deleteSlot(slotId) {
+  async updateSlotStatus(slotId, isActive) {
     try {
-      // 3. Soft delete: set isActive to false instead of deleting the document
       const slot = await Slot.findByIdAndUpdate(
         slotId,
-        { isActive: false },
-        { new: true }
+        { isActive },
+        { returnDocument: 'after', runValidators: true }
       );
 
       if (!slot) {
@@ -106,7 +105,7 @@ class SlotService {
         data: slot,
       };
     } catch (error) {
-      throw new Error(`Failed to delete slot: ${error.message}`);
+      throw new Error(`Failed to update slot status: ${error.message}`);
     }
   }
 }

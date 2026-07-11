@@ -3,8 +3,20 @@ const promotionService = require("./promotion.service");
 class PromotionController {
   async getAllPromotions(req, res) {
     try {
-      const { branchId } = req.query;
-      const result = await promotionService.getAllPromotions(branchId);
+      const { branchId, isManagement } = req.query;
+
+      if (isManagement === 'true') {
+        const user = req.user;
+        let hasViewPerm = false;
+        if (user && user.roleId && user.roleId.permissions) {
+          hasViewPerm = user.roleId.permissions.some(p => p.code === "VIEW_PROMOTION");
+        }
+        if (!hasViewPerm) {
+          return res.status(403).json({ success: false, message: "Forbidden. Requires VIEW_PROMOTION permission." });
+        }
+      }
+
+      const result = await promotionService.getAllPromotions(branchId, isManagement === 'true');
       res.json({
         message: "Get promotions successfully",
         ...result,

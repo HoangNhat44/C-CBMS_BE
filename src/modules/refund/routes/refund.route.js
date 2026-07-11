@@ -1,6 +1,6 @@
 const express = require("express");
 const refundController = require("../controller/refund.controller");
-const { authMiddleware, checkRoles, optionalAuthMiddleware } = require("../../../middlewares/auth.middleware");
+const { authMiddleware, requirePermission, optionalAuthMiddleware } = require("../../../middlewares/auth.middleware");
 
 const router = express.Router();
 
@@ -11,10 +11,10 @@ router.get("/booking/:bookingId", optionalAuthMiddleware, refundController.getRe
 router.use(authMiddleware);
 
 // Customer endpoints
-router.post("/", checkRoles("customer"), refundController.createRefund);
+router.post("/", requirePermission("SEND_REFUND_REQUEST"), refundController.createRefund);
 
 // Owner endpoints
-router.get("/", checkRoles("owner"), refundController.getAllRefunds);
-router.put("/:id/approve", checkRoles("owner"), refundController.approveRefund);
+router.get("/", requirePermission("VIEW_REFUND_REQUEST"), refundController.getAllRefunds);
+router.put("/:id/approve", requirePermission("UPDATE_REFUND_REQUEST"), refundController.approveRefund);
 
 module.exports = router;

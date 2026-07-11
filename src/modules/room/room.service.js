@@ -46,7 +46,7 @@ class RoomService {
   async updateRoom(id, data) {
     try {
       const room = await Room.findByIdAndUpdate(id, data, {
-        new: true,
+        returnDocument: 'after',
         runValidators: true,
       })
         .populate("branchId")
