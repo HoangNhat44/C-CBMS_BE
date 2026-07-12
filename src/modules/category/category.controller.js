@@ -4,6 +4,15 @@ const User = require("../../models/users.model");
 
 async function isStaffUser(req) {
   try {
+    if (req.user) {
+      if (!req.user.isActive) return false;
+      const permissions = req.user.roleId?.permissions || [];
+      return permissions.some(p => 
+        ["CREATE_PRODUCT", "UPDATE_PRODUCT", "DELETE_PRODUCT", "VIEW_REVENUE"].includes(p.code || p)
+      );
+    }
+
+    // Fallback/Simulated token check for development
     let token;
     if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
       token = req.headers.authorization.split(" ")[1];
@@ -12,10 +21,18 @@ async function isStaffUser(req) {
     if (token === "simulated_owner_token_jwt" || token === "simulated_admin_token_jwt" || token === "simulated_staff_token_jwt") {
       return true;
     }
+    
+    // Parse normal token if not parsed by middleware
     const decoded = verifyToken(token);
-    const user = await User.findById(decoded.userId).populate("roleId");
+    const user = await User.findById(decoded.userId).populate({
+      path: "roleId",
+      populate: { path: "permissions" }
+    });
     if (!user || !user.isActive) return false;
-    return ["owner", "staff"].includes(user.roleId.name);
+    const permissions = user.roleId?.permissions || [];
+    return permissions.some(p => 
+      ["CREATE_PRODUCT", "UPDATE_PRODUCT", "DELETE_PRODUCT", "VIEW_REVENUE"].includes(p.code || p)
+    );
   } catch (error) {
     return false;
   }

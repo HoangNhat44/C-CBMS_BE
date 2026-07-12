@@ -7,6 +7,8 @@ const mongoose = require("mongoose");
 
 async function getCurrentUser(req) {
   try {
+    if (req.user) return req.user;
+
     let token;
     if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
       token = req.headers.authorization.split(" ")[1];
@@ -14,19 +16,28 @@ async function getCurrentUser(req) {
     if (!token) return null;
 
     if (token === "simulated_owner_token_jwt" || token === "simulated_admin_token_jwt") {
-      const owner = await User.findOne({ email: "owner@example.com" }).populate("roleId");
+      const owner = await User.findOne({ email: "owner@example.com" }).populate({
+        path: "roleId",
+        populate: { path: "permissions" }
+      });
       if (owner) return owner;
-      return { roleId: { name: "owner" }, branchId: null, isActive: true };
+      return { roleId: { name: "owner", permissions: [] }, branchId: null, isActive: true };
     }
 
     if (token === "simulated_staff_token_jwt") {
-      const staff = await User.findOne({ email: "staff@example.com" }).populate("roleId");
+      const staff = await User.findOne({ email: "staff@example.com" }).populate({
+        path: "roleId",
+        populate: { path: "permissions" }
+      });
       if (staff) return staff;
-      return { roleId: { name: "staff" }, branchId: null, isActive: true };
+      return { roleId: { name: "staff", permissions: [] }, branchId: null, isActive: true };
     }
 
     const decoded = verifyToken(token);
-    const user = await User.findById(decoded.userId).populate("roleId");
+    const user = await User.findById(decoded.userId).populate({
+      path: "roleId",
+      populate: { path: "permissions" }
+    });
     if (!user || !user.isActive) return null;
     return user;
   } catch (error) {
@@ -36,6 +47,14 @@ async function getCurrentUser(req) {
 
 async function isStaffUser(req) {
   try {
+    if (req.user) {
+      if (!req.user.isActive) return false;
+      const permissions = req.user.roleId?.permissions || [];
+      return permissions.some(p => 
+        ["CREATE_PRODUCT", "UPDATE_PRODUCT", "DELETE_PRODUCT", "VIEW_REVENUE"].includes(p.code || p)
+      );
+    }
+
     let token;
     if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
       token = req.headers.authorization.split(" ")[1];
@@ -45,9 +64,15 @@ async function isStaffUser(req) {
       return true;
     }
     const decoded = verifyToken(token);
-    const user = await User.findById(decoded.userId).populate("roleId");
+    const user = await User.findById(decoded.userId).populate({
+      path: "roleId",
+      populate: { path: "permissions" }
+    });
     if (!user || !user.isActive) return false;
-    return ["owner", "staff"].includes(user.roleId.name);
+    const permissions = user.roleId?.permissions || [];
+    return permissions.some(p => 
+      ["CREATE_PRODUCT", "UPDATE_PRODUCT", "DELETE_PRODUCT", "VIEW_REVENUE"].includes(p.code || p)
+    );
   } catch (error) {
     return false;
   }

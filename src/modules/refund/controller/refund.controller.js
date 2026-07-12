@@ -63,8 +63,6 @@ class RefundController {
   async getRefundByBookingId(req, res) {
     try {
       const { bookingId } = req.params;
-      const roleName = req.user ? req.user.roleId?.name : null;
-
       const result = await refundService.getRefundByBookingId(bookingId);
       if (!result.success) {
         return res.status(result.statusCode).json(result);
@@ -80,27 +78,28 @@ class RefundController {
         });
       }
 
-      // Role-based Access Control
+      // Permission-based Access Control
       if (req.user) {
-        if (roleName === "customer") {
-          if (booking.customerId.toString() !== req.user._id.toString()) {
-            return res.status(403).json({
-              success: false,
-              message: "Forbidden. You are not allowed to view this refund details."
-            });
+        const hasViewAll = req.user.roleId?.permissions?.some(p => p.code === "VIEW_REFUND_REQUEST");
+        const isStaff = !!req.user.branchId;
+
+        if (!hasViewAll) {
+          if (isStaff) {
+            if (booking.branchId.toString() !== req.user.branchId.toString()) {
+              return res.status(403).json({
+                success: false,
+                message: "Forbidden. Staff can only view refunds belonging to their own branch."
+              });
+            }
+          } else {
+            // Customer
+            if (booking.customerId.toString() !== req.user._id.toString()) {
+              return res.status(403).json({
+                success: false,
+                message: "Forbidden. You are not allowed to view this refund details."
+              });
+            }
           }
-        } else if (roleName === "staff") {
-          if (booking.branchId.toString() !== req.user.branchId.toString()) {
-            return res.status(403).json({
-              success: false,
-              message: "Forbidden. Staff can only view refunds belonging to their own branch."
-            });
-          }
-        } else if (roleName !== "owner") {
-          return res.status(403).json({
-            success: false,
-            message: "Forbidden. Insufficient permissions."
-          });
         }
       }
 

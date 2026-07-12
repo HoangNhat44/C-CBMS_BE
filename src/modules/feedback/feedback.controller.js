@@ -5,6 +5,8 @@ const mongoose = require("mongoose");
 
 async function getCurrentUser(req) {
   try {
+    if (req.user) return req.user;
+
     let token;
     if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
       token = req.headers.authorization.split(" ")[1];
@@ -12,25 +14,37 @@ async function getCurrentUser(req) {
     if (!token) return null;
 
     if (token === "simulated_owner_token_jwt" || token === "simulated_admin_token_jwt") {
-      const owner = await User.findOne({ email: "owner@example.com" }).populate("roleId");
+      const owner = await User.findOne({ email: "owner@example.com" }).populate({
+        path: "roleId",
+        populate: { path: "permissions" }
+      });
       if (owner) return owner;
-      return { roleId: { name: "owner" }, branchId: null, isActive: true };
+      return { roleId: { name: "owner", permissions: [] }, branchId: null, isActive: true };
     }
 
     if (token === "simulated_staff_token_jwt") {
-      const staff = await User.findOne({ email: "staff@example.com" }).populate("roleId");
+      const staff = await User.findOne({ email: "staff@example.com" }).populate({
+        path: "roleId",
+        populate: { path: "permissions" }
+      });
       if (staff) return staff;
-      return { roleId: { name: "staff" }, branchId: null, isActive: true };
+      return { roleId: { name: "staff", permissions: [] }, branchId: null, isActive: true };
     }
 
     if (token === "simulated_customer_token_jwt") {
-      const customer = await User.findById("6a38f6096149376ca36423a0").populate("roleId");
+      const customer = await User.findById("6a38f6096149376ca36423a0").populate({
+        path: "roleId",
+        populate: { path: "permissions" }
+      });
       if (customer) return customer;
-      return { _id: new mongoose.Types.ObjectId("6a38f6096149376ca36423a0"), roleId: { name: "customer" }, isActive: true };
+      return { _id: new mongoose.Types.ObjectId("6a38f6096149376ca36423a0"), roleId: { name: "customer", permissions: [] }, isActive: true };
     }
 
     const decoded = verifyToken(token);
-    const user = await User.findById(decoded.userId).populate("roleId");
+    const user = await User.findById(decoded.userId).populate({
+      path: "roleId",
+      populate: { path: "permissions" }
+    });
     if (!user || !user.isActive) return null;
     return user;
   } catch (error) {
@@ -40,6 +54,14 @@ async function getCurrentUser(req) {
 
 async function isStaffUser(req) {
   try {
+    if (req.user) {
+      if (!req.user.isActive) return false;
+      const permissions = req.user.roleId?.permissions || [];
+      return permissions.some(p => 
+        ["DELETE_FEEDBACK", "EDIT_FEEDBACK", "CREATE_FEEDBACK", "VIEW_REVENUE"].includes(p.code || p)
+      );
+    }
+
     let token;
     if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
       token = req.headers.authorization.split(" ")[1];
@@ -49,9 +71,15 @@ async function isStaffUser(req) {
       return true;
     }
     const decoded = verifyToken(token);
-    const user = await User.findById(decoded.userId).populate("roleId");
+    const user = await User.findById(decoded.userId).populate({
+      path: "roleId",
+      populate: { path: "permissions" }
+    });
     if (!user || !user.isActive) return false;
-    return ["owner", "staff"].includes(user.roleId.name);
+    const permissions = user.roleId?.permissions || [];
+    return permissions.some(p => 
+      ["DELETE_FEEDBACK", "EDIT_FEEDBACK", "CREATE_FEEDBACK", "VIEW_REVENUE"].includes(p.code || p)
+    );
   } catch (error) {
     return false;
   }
@@ -163,21 +191,17 @@ class FeedbackController {
       }
 
       const currentUser = await getCurrentUser(req);
-      const userRoleName = currentUser?.roleId?.name;
+      const hasViewAll = currentUser?.roleId?.permissions?.some(p => ["VIEW_REVENUE", "VIEW_ROLE", "VIEW_ACCOUNT", "VIEW_REFUND_REQUEST"].includes(p.code));
+      const isStaff = !!currentUser?.branchId;
 
-      if (userRoleName === "owner" || userRoleName === "admin") {
+      if (hasViewAll) {
         // Owner/Admin can see all feedbacks
         if (req.query.isVisible !== undefined) {
           filter.isVisible = req.query.isVisible === "true";
         }
-      } else if (userRoleName === "staff") {
+      } else if (isStaff) {
         // Staff can only see feedbacks of their own branch
-        if (currentUser.branchId) {
-          filter.branchId = currentUser.branchId;
-        } else {
-          // If staff has no branch, force empty results
-          filter.branchId = new mongoose.Types.ObjectId();
-        }
+        filter.branchId = currentUser.branchId;
 
         if (req.query.isVisible !== undefined) {
           filter.isVisible = req.query.isVisible === "true";
@@ -209,11 +233,12 @@ class FeedbackController {
       }
 
       const currentUser = await getCurrentUser(req);
-      const userRoleName = currentUser?.roleId?.name;
+      const hasViewAll = currentUser?.roleId?.permissions?.some(p => ["VIEW_REVENUE", "VIEW_ROLE", "VIEW_ACCOUNT", "VIEW_REFUND_REQUEST"].includes(p.code));
+      const isStaff = !!currentUser?.branchId;
 
-      if (userRoleName === "owner" || userRoleName === "admin") {
+      if (hasViewAll) {
         // Owner/Admin can see any feedback
-      } else if (userRoleName === "staff") {
+      } else if (isStaff) {
         // Staff can only see feedback of their own branch
         const feedbackBranchId = result.data.branchId?._id || result.data.branchId;
         const staffBranchId = currentUser.branchId?._id || currentUser.branchId;
@@ -248,10 +273,11 @@ class FeedbackController {
       }
 
       const currentUser = await getCurrentUser(req);
-      const userRoleName = currentUser?.roleId?.name;
+      const hasViewAll = currentUser?.roleId?.permissions?.some(p => ["VIEW_REVENUE", "VIEW_ROLE", "VIEW_ACCOUNT", "VIEW_REFUND_REQUEST"].includes(p.code));
+      const isStaff = !!currentUser?.branchId;
 
       // Owner and Staff cannot update feedbacks (Read-only)
-      if (userRoleName === "owner" || userRoleName === "admin" || userRoleName === "staff") {
+      if (hasViewAll || isStaff) {
         return res.status(403).json({ success: false, message: "Quản trị viên và Nhân viên chỉ có quyền xem phản hồi, không có quyền chỉnh sửa." });
       }
 
@@ -284,10 +310,11 @@ class FeedbackController {
       }
 
       const currentUser = await getCurrentUser(req);
-      const userRoleName = currentUser?.roleId?.name;
+      const hasViewAll = currentUser?.roleId?.permissions?.some(p => ["VIEW_REVENUE", "VIEW_ROLE", "VIEW_ACCOUNT", "VIEW_REFUND_REQUEST"].includes(p.code));
+      const isStaff = !!currentUser?.branchId;
 
       // Owner and Staff cannot delete feedbacks (Read-only)
-      if (userRoleName === "owner" || userRoleName === "admin" || userRoleName === "staff") {
+      if (hasViewAll || isStaff) {
         return res.status(403).json({ success: false, message: "Quản trị viên và Nhân viên chỉ có quyền xem phản hồi, không có quyền xóa." });
       }
 
