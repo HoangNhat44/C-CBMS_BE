@@ -17,6 +17,22 @@ class RoomTypeController {
     }
   }
 
+  async getPublicRoomTypes(req, res) {
+    try {
+      const result = await roomTypeService.getPublicRoomTypes();
+      res.json({
+        message: "Get public room types successfully",
+        ...result,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: "Failed to get public room types",
+        error: error.message,
+      });
+    }
+  }
+
   async createRoomType(req, res) {
     try {
       const result = await roomTypeService.createRoomType(req.body);

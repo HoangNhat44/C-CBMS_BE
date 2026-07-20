@@ -424,7 +424,8 @@ class BookingService {
             id: rt._id,
             name: rt.name,
             description: rt.description,
-            capacity: rt.capacity
+            capacity: rt.capacity,
+            image: rt.image
           },
           rooms: []
         });
@@ -470,7 +471,7 @@ class BookingService {
           roomName: room.roomName,
           capacity: room.capacity,
           facilities: room.facilities,
-          images: room.images,
+          image: room.image,
           slots: roomSlots
         });
       }
