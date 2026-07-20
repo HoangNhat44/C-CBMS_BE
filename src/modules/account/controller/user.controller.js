@@ -47,7 +47,7 @@ class UserController {
       const result = await userService.createUser(req.body);
 
       if (!result.success) {
-        return res.status(409).json({
+        return res.status(result.statusCode || 409).json({
           message: result.message,
           ...result,
         });
@@ -73,7 +73,7 @@ class UserController {
       const result = await userService.updateUser(id, req.body);
 
       if (!result.success) {
-        return res.status(404).json(result);
+        return res.status(result.statusCode || 404).json(result);
       }
 
       res.json({

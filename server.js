@@ -4,6 +4,7 @@ dns.setServers(["8.8.8.8", "8.8.4.4"]);
 
 require("dotenv").config({ quiet: true });
 
+const path = require("path");
 const express = require("express");
 const cors = require("cors");
 const http = require("http");
@@ -37,6 +38,7 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json());
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.get("/", (req, res) => {
   res.json({

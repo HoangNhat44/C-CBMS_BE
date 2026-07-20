@@ -35,7 +35,22 @@ class RoomTypeController {
 
   async createRoomType(req, res) {
     try {
-      const result = await roomTypeService.createRoomType(req.body);
+      const data = { ...req.body };
+
+      // Parse capacity to number
+      if (data.capacity) data.capacity = Number(data.capacity);
+
+      // Parse isActive from string to boolean (FormData sends strings)
+      if (typeof data.isActive === "string") {
+        data.isActive = data.isActive === "true";
+      }
+
+      // Handle uploaded image file
+      if (req.file) {
+        data.image = `/uploads/${req.file.filename}`;
+      }
+
+      const result = await roomTypeService.createRoomType(data);
       res.status(201).json({
         message: "Room type created successfully",
         ...result,
@@ -51,7 +66,22 @@ class RoomTypeController {
 
   async updateRoomType(req, res) {
     try {
-      const result = await roomTypeService.updateRoomType(req.params.id, req.body);
+      const data = { ...req.body };
+
+      // Parse capacity to number
+      if (data.capacity) data.capacity = Number(data.capacity);
+
+      // Parse isActive from string to boolean (FormData sends strings)
+      if (typeof data.isActive === "string") {
+        data.isActive = data.isActive === "true";
+      }
+
+      // Handle uploaded image file
+      if (req.file) {
+        data.image = `/uploads/${req.file.filename}`;
+      }
+
+      const result = await roomTypeService.updateRoomType(req.params.id, data);
       res.json({
         message: "Room type updated successfully",
         ...result,

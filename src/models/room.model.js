@@ -26,9 +26,11 @@ const roomSchema = new mongoose.Schema(
       min: 1,
     },
 
-    image: {
-      type: String,
-    },
+    image: [
+      {
+        type: String,
+      }
+    ],
 
     facilities: [
       {
