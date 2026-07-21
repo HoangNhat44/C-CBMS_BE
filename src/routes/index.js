@@ -15,6 +15,7 @@ const feedbackRoutes = require("../modules/feedback/feedback.route");
 const refundRoutes = require("../modules/refund/routes/refund.route");
 const slotRoutes = require("../modules/slot/slot.route");
 const profileRoutes = require("../modules/profile/profile.route");
+const roomPriceRoutes = require("../modules/roomPrice/roomPrice.route");
 
 module.exports = {
   accountRoutes,
@@ -34,5 +35,6 @@ module.exports = {
   refundRoutes,
   slotRoutes,
   profileRoutes,
+  roomPriceRoutes,
 };
 

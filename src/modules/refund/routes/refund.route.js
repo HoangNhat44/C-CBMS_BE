@@ -12,6 +12,7 @@ router.use(authMiddleware);
 
 // Customer endpoints
 router.post("/", requirePermission("SEND_REFUND_REQUEST"), refundController.createRefund);
+router.post("/cancel/:bookingId", requirePermission("SEND_REFUND_REQUEST"), refundController.cancelRefundRequest);
 
 // Owner endpoints
 router.get("/", requirePermission("VIEW_REFUND_REQUEST"), refundController.getAllRefunds);

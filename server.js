@@ -63,6 +63,7 @@ app.use("/api/feedbacks", routes.feedbackRoutes);
 app.use("/api/refunds", routes.refundRoutes);
 app.use("/api/slots", routes.slotRoutes);
 app.use("/api/profile", routes.profileRoutes);
+app.use("/api/room-prices", routes.roomPriceRoutes);
 
 
 const startServer = async () => {

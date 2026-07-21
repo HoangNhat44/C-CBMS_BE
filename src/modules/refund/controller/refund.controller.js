@@ -147,6 +147,27 @@ class RefundController {
       });
     }
   }
+
+  // Customer cancels their pending refund request
+  async cancelRefundRequest(req, res) {
+    try {
+      const { bookingId } = req.params;
+      const customerId = req.user._id;
+
+      const result = await refundService.cancelRefundRequest(bookingId, customerId);
+      if (!result.success) {
+        return res.status(result.statusCode).json(result);
+      }
+
+      return res.status(200).json(result);
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to cancel refund request.",
+        error: error.message
+      });
+    }
+  }
 }
 
 module.exports = new RefundController();

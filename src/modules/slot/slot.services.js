@@ -31,18 +31,49 @@ class SlotService {
     }
   }
 
+  async checkTimeOverlap(startTime, endTime, excludeSlotId = null) {
+    const timeToMinutes = (tStr) => {
+      if (!tStr) return 0;
+      const [h, m] = tStr.split(":").map(Number);
+      return h * 60 + m;
+    };
+
+    const startMin = timeToMinutes(startTime);
+    const endMin = timeToMinutes(endTime);
+
+    if (startMin >= endMin) {
+      return {
+        hasOverlap: true,
+        message: "Giờ bắt đầu phải nhỏ hơn giờ kết thúc (ví dụ: 08:00 - 10:00)."
+      };
+    }
+
+    const allSlots = await Slot.find();
+    for (const slot of allSlots) {
+      if (excludeSlotId && slot._id.toString() === excludeSlotId.toString()) {
+        continue;
+      }
+      const sMin = timeToMinutes(slot.startTime);
+      const eMin = timeToMinutes(slot.endTime);
+
+      if (startMin < eMin && endMin > sMin) {
+        return {
+          hasOverlap: true,
+          message: `Khung giờ (${startTime} - ${endTime}) bị trùng/gối lên khung giờ "${slot.name}" (${slot.startTime} - ${slot.endTime}). Vui lòng chọn thời gian khác!`
+        };
+      }
+    }
+    return { hasOverlap: false };
+  }
+
   async createSlot(slotData) {
     try {
-      // 1. Check if a slot with the same startTime and endTime already exists
-      const existingSlot = await Slot.findOne({
-        startTime: slotData.startTime,
-        endTime: slotData.endTime,
-      });
-
-      if (existingSlot) {
+      // Validate time overlap
+      const overlapCheck = await this.checkTimeOverlap(slotData.startTime, slotData.endTime);
+      if (overlapCheck.hasOverlap) {
         return {
           success: false,
-          message: "Khung giờ slot này đã tồn tại, không thể tạo trùng.",
+          message: overlapCheck.message
         };
       }
 
@@ -58,9 +89,31 @@ class SlotService {
 
   async updateSlot(slotId, updateData) {
     try {
-      // 2. Restrict updates to only allow name, timeType, and isActive
+      const existingSlot = await Slot.findById(slotId);
+      if (!existingSlot) {
+        return {
+          success: false,
+          message: "Slot not found",
+        };
+      }
+
+      const newStartTime = updateData.startTime || existingSlot.startTime;
+      const newEndTime = updateData.endTime || existingSlot.endTime;
+
+      if (updateData.startTime || updateData.endTime) {
+        const overlapCheck = await this.checkTimeOverlap(newStartTime, newEndTime, slotId);
+        if (overlapCheck.hasOverlap) {
+          return {
+            success: false,
+            message: overlapCheck.message
+          };
+        }
+      }
+
       const allowedUpdates = {};
       if (updateData.hasOwnProperty("name")) allowedUpdates.name = updateData.name;
+      if (updateData.hasOwnProperty("startTime")) allowedUpdates.startTime = updateData.startTime;
+      if (updateData.hasOwnProperty("endTime")) allowedUpdates.endTime = updateData.endTime;
       if (updateData.hasOwnProperty("timeType")) allowedUpdates.timeType = updateData.timeType;
       if (updateData.hasOwnProperty("isActive")) allowedUpdates.isActive = updateData.isActive;
 
@@ -68,13 +121,6 @@ class SlotService {
         returnDocument: 'after',
         runValidators: true,
       });
-
-      if (!slot) {
-        return {
-          success: false,
-          message: "Slot not found",
-        };
-      }
 
       return {
         success: true,

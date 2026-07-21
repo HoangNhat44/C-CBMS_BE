@@ -184,6 +184,49 @@ class RefundService {
       throw new Error(`Failed to approve refund: ${error.message}`);
     }
   }
+
+  // Customer cancels their pending refund request
+  async cancelRefundRequest(bookingId, customerId) {
+    try {
+      const booking = await Booking.findById(bookingId);
+      if (!booking) {
+        return { success: false, statusCode: 404, message: "Booking not found." };
+      }
+
+      if (booking.customerId?.toString() !== customerId.toString()) {
+        return { success: false, statusCode: 403, message: "Forbidden. This booking does not belong to you." };
+      }
+
+      if (booking.status !== "request_refund") {
+        return { success: false, statusCode: 400, message: "Booking is not in refund request state." };
+      }
+
+      const refund = await Refund.findOne({ bookingId, status: "pending" });
+      if (!refund) {
+        return { success: false, statusCode: 404, message: "No pending refund request found to cancel." };
+      }
+
+      // Mark refund as cancelled
+      refund.status = "cancelled";
+      refund.adminNotes = "Khách hàng đã tự hủy yêu cầu hoàn tiền.";
+      refund.processedAt = new Date();
+      await refund.save();
+
+      // Restore booking status back to confirmed
+      const updatedBooking = await bookingService.updateStatus(bookingId, {
+        status: "confirmed"
+      });
+
+      return {
+        success: true,
+        statusCode: 200,
+        message: "Rút lại yêu cầu hoàn tiền thành công. Đơn phòng đã được khôi phục về trạng thái Đã xác nhận.",
+        data: { booking: updatedBooking.data, refund }
+      };
+    } catch (error) {
+      throw new Error(`Failed to cancel refund request: ${error.message}`);
+    }
+  }
 }
 
 module.exports = new RefundService();

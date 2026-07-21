@@ -1,7 +1,12 @@
 const mongoose = require("mongoose");
 
-const roomPriceSchema = new mongoose.Schema(
+const roomPriceHistorySchema = new mongoose.Schema(
   {
+    roomPriceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "RoomPrice",
+    },
+
     branchId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Branch",
@@ -26,26 +31,35 @@ const roomPriceSchema = new mongoose.Schema(
       required: true,
     },
 
-    pricePerHour: {
+    oldPricePerHour: {
       type: Number,
-      required: true,
-      min: 0,
+      default: 0,
     },
 
-    isActive: {
-      type: Boolean,
-      default: true,
+    newPricePerHour: {
+      type: Number,
+      required: true,
+    },
+
+    difference: {
+      type: Number,
+      default: 0,
+    },
+
+    updatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+
+    reason: {
+      type: String,
+      default: "",
     },
   },
   {
     timestamps: true,
-    collection: "room_prices",
+    collection: "room_price_histories",
   }
 );
 
-roomPriceSchema.index(
-  { branchId: 1, roomTypeId: 1, slotId: 1, dayType: 1 },
-  { unique: true }
-);
-
-module.exports = mongoose.model("RoomPrice", roomPriceSchema);
+module.exports = mongoose.model("RoomPriceHistory", roomPriceHistorySchema);
