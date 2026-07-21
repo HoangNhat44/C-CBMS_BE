@@ -6,7 +6,7 @@ const router = express.Router();
 
 router.get("/", optionalAuthMiddleware, promotionController.getAllPromotions);
 router.post("/apply", authMiddleware, promotionController.applyPromotion);
-router.post("/calculate", authMiddleware, promotionController.calculateDiscount);
+router.post("/calculate", promotionController.calculateDiscount);
 router.post("/confirm-usage", authMiddleware, promotionController.confirmUsage);
 router.post("/revert-usage", authMiddleware, promotionController.revertUsage);
 router.post("/", authMiddleware, requirePermission("CREATE_PROMOTION"), promotionController.createPromotion);
