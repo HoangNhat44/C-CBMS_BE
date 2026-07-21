@@ -149,6 +149,18 @@ class BookingController {
   // Create booking
   async createBooking(req, res) {
     try {
+      // Enforce permission if user is logged in
+      if (req.user) {
+        const permissions = req.user.roleId?.permissions || [];
+        const hasPermission = permissions.some(p => p.code === "CREATE_BOOKING");
+        if (!hasPermission) {
+          return res.status(403).json({
+            success: false,
+            message: "Forbidden. You do not have permission to create a booking."
+          });
+        }
+      }
+
       const result = await bookingService.createBooking(req.body);
 
       if (!result.success) {
