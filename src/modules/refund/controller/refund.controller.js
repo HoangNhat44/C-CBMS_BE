@@ -22,10 +22,12 @@ class RefundController {
         });
       }
 
+      const io = req.app.get("io");
       const result = await refundService.createRefundRequest({
         bookingId,
         customerId,
-        reason
+        reason,
+        io
       });
 
       if (!result.success) {

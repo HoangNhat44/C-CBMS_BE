@@ -3,10 +3,11 @@ const Booking = require("../../../models/booking.model");
 const Payment = require("../../../models/payment.model");
 const bookingService = require("../../booking/services/booking.service");
 const { EmailService } = require("../../../config/email.service");
+const notificationService = require("../../notification/services/notification.service");
 
 class RefundService {
   // Create refund request or execute same-day cancellation
-  async createRefundRequest({ bookingId, customerId, reason }) {
+  async createRefundRequest({ bookingId, customerId, reason, io }) {
     try {
       const booking = await Booking.findById(bookingId);
       if (!booking) {
@@ -62,6 +63,9 @@ class RefundService {
           processedAt: new Date()
         });
 
+        // Notify owners about refund
+        await notificationService.notifyOwnersAboutRefund(booking, io);
+
         return {
           success: true,
           statusCode: 200,
@@ -85,6 +89,9 @@ class RefundService {
         const updatedBooking = await bookingService.updateStatus(bookingId, {
           status: "request_refund"
         });
+
+        // Notify owners about refund
+        await notificationService.notifyOwnersAboutRefund(booking, io);
 
         return {
           success: true,

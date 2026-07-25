@@ -28,6 +28,21 @@ app.set("io", io);
 
 io.on("connection", (socket) => {
   console.log(`Socket client connected: ${socket.id}`);
+  
+  socket.on("join", (userId) => {
+    if (userId) {
+      socket.join(userId.toString());
+      console.log(`Socket ${socket.id} joined room: ${userId}`);
+    }
+  });
+
+  socket.on("register", (userId) => {
+    if (userId) {
+      socket.join(userId.toString());
+      console.log(`Socket ${socket.id} registered user: ${userId}`);
+    }
+  });
+
   socket.on("disconnect", () => {
     console.log(`Socket client disconnected: ${socket.id}`);
   });
@@ -65,6 +80,7 @@ app.use("/api/refunds", routes.refundRoutes);
 app.use("/api/slots", routes.slotRoutes);
 app.use("/api/profile", routes.profileRoutes);
 app.use("/api/room-prices", routes.roomPriceRoutes);
+app.use("/api/notifications", routes.notificationRoutes);
 
 
 const startServer = async () => {

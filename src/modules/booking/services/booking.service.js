@@ -14,7 +14,11 @@ function calculateDurationInHours(startTime, endTime) {
     const [endH, endM] = endTime.split(":").map(Number);
     
     const startMin = startH * 60 + startM;
-    const endMin = endH * 60 + endM;
+    let endMin = endH * 60 + endM;
+    
+    if (endMin <= startMin) {
+      endMin += 24 * 60; // Add 24 hours if it crosses midnight (e.g. 22:00 to 00:00)
+    }
     
     if (isNaN(startMin) || isNaN(endMin) || endMin <= startMin) {
       return 1; // Default fallback duration
