@@ -152,11 +152,18 @@ class BookingController {
       // Enforce permission if user is logged in
       if (req.user) {
         const permissions = req.user.roleId?.permissions || [];
-        const hasPermission = permissions.some(p => p.code === "CREATE_BOOKING");
+        const source = req.body.source || "online";
+        
+        let requiredPermission = "BOOK_ROOM";
+        if (source === "walk-in") {
+          requiredPermission = "CREATE_BOOKING";
+        }
+
+        const hasPermission = permissions.some(p => p.code === requiredPermission);
         if (!hasPermission) {
           return res.status(403).json({
             success: false,
-            message: "Forbidden. You do not have permission to create a booking."
+            message: `Forbidden. You do not have permission to perform ${source} booking.`
           });
         }
       }
