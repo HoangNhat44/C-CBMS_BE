@@ -111,6 +111,8 @@ class PromotionService {
           };
         }
         data.code = data.code.toUpperCase();
+      } else if (data.code === "") {
+        data.code = null;
       }
 
       if (data.isActive !== undefined) {

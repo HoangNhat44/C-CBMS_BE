@@ -5,7 +5,7 @@ const { authMiddleware, optionalAuthMiddleware, requirePermission } = require(".
 const router = express.Router();
 
 router.get("/", optionalAuthMiddleware, promotionController.getAllPromotions);
-router.post("/apply", authMiddleware, promotionController.applyPromotion);
+router.post("/apply", promotionController.applyPromotion);
 router.post("/calculate", promotionController.calculateDiscount);
 router.post("/confirm-usage", authMiddleware, promotionController.confirmUsage);
 router.post("/revert-usage", authMiddleware, promotionController.revertUsage);
