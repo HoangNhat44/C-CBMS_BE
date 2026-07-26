@@ -5,7 +5,7 @@ class UserService {
   // Lấy tất cả users
   async getAllUsers() {
     try {
-      const users = await User.find().populate("roleId", "name").sort({ createdAt: -1 });
+      const users = await User.find().populate("roleId", "name").populate("branchId", "name").sort({ createdAt: -1 });
       return {
         success: true,
         data: users,
