@@ -10,7 +10,7 @@ router.get("/check-availability", optionalAuthMiddleware, bookingController.chec
 router.get("/", authMiddleware, requirePermission(["VIEW_BOOKING_HISTORY", "VIEW_BOOKING_SCHEDULE"]), bookingController.getAllBookings);
 router.get("/:id", optionalAuthMiddleware, bookingController.getBookingById);
 router.post("/", optionalAuthMiddleware, bookingController.createBooking); // open for guest/members
-router.put("/:id/status", authMiddleware, requirePermission("UPDATE_BOOKING"), bookingController.updateStatus);
+router.put("/:id/status", authMiddleware, requirePermission(["UPDATE_BOOKING", "CANCEL_BOOKING"]), bookingController.updateStatus);
 router.delete("/:id", authMiddleware, requirePermission(["CANCEL_BOOKING", "UPDATE_BOOKING"]), bookingController.deleteBooking);
 
 module.exports = router;
